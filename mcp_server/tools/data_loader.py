@@ -35,9 +35,9 @@ async def run_tool(input_data: LoadDatasetInput) -> LoadDatasetOutput:
             pro = loader.load_proteomics(input_data.dataset)
             feature_counts["proteomics"] = pro.shape[1]
             total_cells = pro.shape[0] * pro.shape[1]
-            missing_summary["proteomics"] = round(
-                pro.isna().sum().sum() / total_cells * 100, 2
-            ) if total_cells > 0 else 0.0
+            missing_summary["proteomics"] = (
+                round(pro.isna().sum().sum() / total_cells * 100, 2) if total_cells > 0 else 0.0
+            )
             if n_samples == 0:
                 n_samples = pro.shape[0]
         except FileNotFoundError:
@@ -48,9 +48,7 @@ async def run_tool(input_data: LoadDatasetInput) -> LoadDatasetOutput:
             rna = loader.load_rnaseq(input_data.dataset)
             feature_counts["rnaseq"] = rna.shape[1]
             total_cells = rna.shape[0] * rna.shape[1]
-            missing_summary["rnaseq"] = round(
-                rna.isna().sum().sum() / total_cells * 100, 2
-            ) if total_cells > 0 else 0.0
+            missing_summary["rnaseq"] = round(rna.isna().sum().sum() / total_cells * 100, 2) if total_cells > 0 else 0.0
             if n_samples == 0:
                 n_samples = rna.shape[0]
         except FileNotFoundError:

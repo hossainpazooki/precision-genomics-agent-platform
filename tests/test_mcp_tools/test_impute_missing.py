@@ -26,11 +26,13 @@ def sample_matrix():
 @pytest.fixture
 def sample_clinical():
     """Create sample clinical data."""
-    return pd.DataFrame({
-        "sample_id": [f"S{i:03d}" for i in range(20)],
-        "MSI_status": ["MSI-H"] * 3 + ["MSS"] * 17,
-        "gender": ["Male"] * 10 + ["Female"] * 10,
-    })
+    return pd.DataFrame(
+        {
+            "sample_id": [f"S{i:03d}" for i in range(20)],
+            "MSI_status": ["MSI-H"] * 3 + ["MSS"] * 17,
+            "gender": ["Male"] * 10 + ["Female"] * 10,
+        }
+    )
 
 
 @pytest.fixture
@@ -39,8 +41,12 @@ def mock_imputer(sample_matrix):
     imputer = MagicMock()
     imputed = sample_matrix.fillna(0)
     stats = {
-        "n_mar": 3, "n_mnar": 0, "total_missing": 3,
-        "remaining_nan": 0, "pct_mnar": 0.0, "pct_mar": 100.0,
+        "n_mar": 3,
+        "n_mnar": 0,
+        "total_missing": 3,
+        "remaining_nan": 0,
+        "pct_mnar": 0.0,
+        "pct_mar": 100.0,
     }
     imputer.impute.return_value = (imputed, stats)
     return imputer
@@ -49,8 +55,10 @@ def mock_imputer(sample_matrix):
 @pytest.mark.asyncio
 async def test_impute_default(mock_imputer, sample_matrix, sample_clinical):
     """Test imputation with default parameters."""
-    with patch("mcp_server.tools.impute_missing.OmicsImputer", return_value=mock_imputer), \
-         patch("mcp_server.tools.impute_missing.OmicsDataLoader") as MockLoader:
+    with (
+        patch("mcp_server.tools.impute_missing.OmicsImputer", return_value=mock_imputer),
+        patch("mcp_server.tools.impute_missing.OmicsDataLoader") as MockLoader,
+    ):
         loader = MagicMock()
         loader.load_clinical.return_value = sample_clinical
         loader.load_proteomics.return_value = sample_matrix
@@ -68,8 +76,10 @@ async def test_impute_default(mock_imputer, sample_matrix, sample_clinical):
 @pytest.mark.asyncio
 async def test_impute_mar_count(mock_imputer, sample_matrix, sample_clinical):
     """Test that MAR gene count is returned."""
-    with patch("mcp_server.tools.impute_missing.OmicsImputer", return_value=mock_imputer), \
-         patch("mcp_server.tools.impute_missing.OmicsDataLoader") as MockLoader:
+    with (
+        patch("mcp_server.tools.impute_missing.OmicsImputer", return_value=mock_imputer),
+        patch("mcp_server.tools.impute_missing.OmicsDataLoader") as MockLoader,
+    ):
         loader = MagicMock()
         loader.load_clinical.return_value = sample_clinical
         loader.load_proteomics.return_value = sample_matrix
@@ -86,8 +96,10 @@ async def test_impute_mar_count(mock_imputer, sample_matrix, sample_clinical):
 @pytest.mark.asyncio
 async def test_impute_reconstruction_error(mock_imputer, sample_matrix, sample_clinical):
     """Test that reconstruction error is computed."""
-    with patch("mcp_server.tools.impute_missing.OmicsImputer", return_value=mock_imputer), \
-         patch("mcp_server.tools.impute_missing.OmicsDataLoader") as MockLoader:
+    with (
+        patch("mcp_server.tools.impute_missing.OmicsImputer", return_value=mock_imputer),
+        patch("mcp_server.tools.impute_missing.OmicsDataLoader") as MockLoader,
+    ):
         loader = MagicMock()
         loader.load_clinical.return_value = sample_clinical
         loader.load_proteomics.return_value = sample_matrix
@@ -129,8 +141,10 @@ async def test_impute_comparison_dict(mock_imputer, sample_matrix, sample_clinic
 @pytest.mark.asyncio
 async def test_impute_rnaseq_modality(mock_imputer, sample_matrix, sample_clinical):
     """Test imputation with RNA-Seq modality loads the correct data."""
-    with patch("mcp_server.tools.impute_missing.OmicsImputer", return_value=mock_imputer), \
-         patch("mcp_server.tools.impute_missing.OmicsDataLoader") as MockLoader:
+    with (
+        patch("mcp_server.tools.impute_missing.OmicsImputer", return_value=mock_imputer),
+        patch("mcp_server.tools.impute_missing.OmicsDataLoader") as MockLoader,
+    ):
         loader = MagicMock()
         loader.load_clinical.return_value = sample_clinical
         loader.load_rnaseq.return_value = sample_matrix

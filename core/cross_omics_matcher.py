@@ -53,12 +53,14 @@ class CrossOmicsMatcher:
             # Drop pairs with NaN
             valid = prot.notna() & rna.notna()
             if valid.sum() < 3:
-                records.append({
-                    "gene": gene,
-                    "r_squared": 0.0,
-                    "slope": 0.0,
-                    "intercept": 0.0,
-                })
+                records.append(
+                    {
+                        "gene": gene,
+                        "r_squared": 0.0,
+                        "slope": 0.0,
+                        "intercept": 0.0,
+                    }
+                )
                 continue
 
             X = rna[valid].values.reshape(-1, 1)
@@ -68,12 +70,14 @@ class CrossOmicsMatcher:
             model.fit(X, y)
             r2 = model.score(X, y)
 
-            records.append({
-                "gene": gene,
-                "r_squared": float(r2),
-                "slope": float(model.coef_[0]),
-                "intercept": float(model.intercept_),
-            })
+            records.append(
+                {
+                    "gene": gene,
+                    "r_squared": float(r2),
+                    "slope": float(model.coef_[0]),
+                    "intercept": float(model.intercept_),
+                }
+            )
 
         return pd.DataFrame(records)
 
@@ -117,9 +121,7 @@ class CrossOmicsMatcher:
 
         return dist
 
-    def _distance_expression_rank(
-        self, prot: np.ndarray, rna: np.ndarray
-    ) -> np.ndarray:
+    def _distance_expression_rank(self, prot: np.ndarray, rna: np.ndarray) -> np.ndarray:
         """Rank-correlation-based distance: 1 - |spearman_rho|."""
         n = prot.shape[0]
         dist = np.zeros((n, n))
@@ -138,9 +140,7 @@ class CrossOmicsMatcher:
 
         return dist
 
-    def _distance_linear_model(
-        self, prot: np.ndarray, rna: np.ndarray
-    ) -> np.ndarray:
+    def _distance_linear_model(self, prot: np.ndarray, rna: np.ndarray) -> np.ndarray:
         """Residual-based distance from per-sample regression."""
         n = prot.shape[0]
         dist = np.zeros((n, n))
@@ -148,7 +148,7 @@ class CrossOmicsMatcher:
         for i in range(n):
             for j in range(n):
                 residuals = prot[i] - rna[j]
-                dist[i, j] = float(np.mean(residuals ** 2))
+                dist[i, j] = float(np.mean(residuals**2))
 
         return dist
 
@@ -196,12 +196,14 @@ class CrossOmicsMatcher:
         results = []
         for i in range(n):
             freq = mismatch_counts[i] / n_iterations
-            results.append({
-                "sample_id": sample_ids[i],
-                "expected_match": sample_ids[i],
-                "mismatch_frequency": float(freq),
-                "is_flagged": freq > 0.5,
-            })
+            results.append(
+                {
+                    "sample_id": sample_ids[i],
+                    "expected_match": sample_ids[i],
+                    "mismatch_frequency": float(freq),
+                    "is_flagged": freq > 0.5,
+                }
+            )
 
         return results
 
@@ -240,10 +242,12 @@ class CrossOmicsMatcher:
                 level = "REVIEW"
                 flagged_by = ["distance"]
 
-            results.append({
-                "sample_id": sample,
-                "concordance_level": level,
-                "flagged_by": flagged_by,
-            })
+            results.append(
+                {
+                    "sample_id": sample,
+                    "concordance_level": level,
+                    "flagged_by": flagged_by,
+                }
+            )
 
         return results

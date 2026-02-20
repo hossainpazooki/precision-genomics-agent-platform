@@ -82,9 +82,7 @@ class COSMOInspiredPipeline:
         if mismatch_labels is None:
             n = len(proteomics_df) if proteomics_df is not None else 0
             idx = proteomics_df.index if proteomics_df is not None else []
-            mismatch_labels = pd.Series(
-                [0] * n, index=idx, name="is_mislabeled"
-            )
+            mismatch_labels = pd.Series([0] * n, index=idx, name="is_mislabeled")
 
         # ---- Stage 1: Impute ----
         stage1 = self._stage_impute(proteomics_df, rnaseq_df, clinical_df)
@@ -95,23 +93,15 @@ class COSMOInspiredPipeline:
 
         # ---- Stage 2: Match ----
         stage2 = self._stage_match(imputed_prot, imputed_rna)
-        results["stages"]["match"] = {
-            k: v for k, v in stage2.items() if k != "distance_matrix"
-        }
+        results["stages"]["match"] = {k: v for k, v in stage2.items() if k != "distance_matrix"}
 
         # ---- Stage 3: Predict ----
-        stage3 = self._stage_predict(
-            imputed_prot, gender_labels, msi_labels, mismatch_labels
-        )
+        stage3 = self._stage_predict(imputed_prot, gender_labels, msi_labels, mismatch_labels)
         results["stages"]["predict"] = stage3
 
         # ---- Stage 4: Correct ----
         classification_flags = stage3.get("flagged_samples", [])
-        distance_flags = [
-            m["sample_id"]
-            for m in stage2.get("mismatches", [])
-            if m.get("is_flagged", False)
-        ]
+        distance_flags = [m["sample_id"] for m in stage2.get("mismatches", []) if m.get("is_flagged", False)]
         stage4 = self._stage_correct(classification_flags, distance_flags)
         results["stages"]["correct"] = stage4
 
@@ -191,14 +181,13 @@ class COSMOInspiredPipeline:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            dist = matcher.build_distance_matrix(
-                proteomics_df, rnaseq_df, shared_genes
-            )
+            dist = matcher.build_distance_matrix(proteomics_df, rnaseq_df, shared_genes)
 
         result["distance_matrix"] = dist
 
         mismatches = matcher.identify_mismatches(
-            dist, shared_samples,
+            dist,
+            shared_samples,
             n_iterations=n_iter,
             sampling_fraction=sampling_frac,
         )
@@ -222,9 +211,7 @@ class COSMOInspiredPipeline:
             return result
 
         # Align indices
-        common = sorted(
-            set(expression_df.index) & set(gender_labels.index) & set(msi_labels.index)
-        )
+        common = sorted(set(expression_df.index) & set(gender_labels.index) & set(msi_labels.index))
         if not common:
             result["flagged_samples"] = []
             return result
@@ -232,8 +219,8 @@ class COSMOInspiredPipeline:
         X = expression_df.loc[common]
         y_gender = gender_labels.loc[common]
         y_msi = msi_labels.loc[common]
-        y_mismatch = mismatch_labels.loc[common] if mismatch_labels is not None else pd.Series(
-            [0] * len(common), index=common
+        y_mismatch = (
+            mismatch_labels.loc[common] if mismatch_labels is not None else pd.Series([0] * len(common), index=common)
         )
 
         # Feature selection
@@ -242,7 +229,10 @@ class COSMOInspiredPipeline:
             warnings.simplefilter("ignore")
             try:
                 panel = selector.ensemble_select(
-                    X, y_msi, target="msi", modality="proteomics",
+                    X,
+                    y_msi,
+                    target="msi",
+                    modality="proteomics",
                     n_top=self.config.get("n_top_features", 30),
                 )
                 result["feature_panel"] = {
@@ -258,9 +248,7 @@ class COSMOInspiredPipeline:
                 result["feature_selection_error"] = str(e)
 
         # Classification
-        classifier = EnsembleMismatchClassifier(
-            random_state=self.config.get("random_state", 42)
-        )
+        classifier = EnsembleMismatchClassifier(random_state=self.config.get("random_state", 42))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
@@ -268,9 +256,7 @@ class COSMOInspiredPipeline:
                 pred_result = classifier.predict_ensemble(X)
                 preds = pred_result["ensemble_predictions"]
 
-                flagged = [
-                    common[i] for i, p in enumerate(preds) if p == 1
-                ]
+                flagged = [common[i] for i, p in enumerate(preds) if p == 1]
                 result["flagged_samples"] = flagged
                 result["classification_result"] = {
                     "n_flagged": len(flagged),

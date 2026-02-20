@@ -82,11 +82,7 @@ class SampleQCSkill:
         }
 
         # Cross-validate: find samples flagged by both paths
-        flagged_ids = {
-            m.get("sample_id")
-            for m in match_result.get("identified_mismatches", [])
-            if m.get("sample_id")
-        }
+        flagged_ids = {m.get("sample_id") for m in match_result.get("identified_mismatches", []) if m.get("sample_id")}
 
         # Concordance analysis
         report["concordance"] = {

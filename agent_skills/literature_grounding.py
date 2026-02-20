@@ -64,9 +64,7 @@ class LiteratureGroundingSkill:
                 "error": str(exc),
             }
 
-    async def _synthesize(
-        self, gene: str, context: str, literature: dict
-    ) -> dict:
+    async def _synthesize(self, gene: str, context: str, literature: dict) -> dict:
         """Use an LLM client to synthesise literature findings."""
         if self.llm_client is None:
             pmid_count = literature.get("pmid_count", 0)
@@ -124,11 +122,13 @@ class LiteratureGroundingSkill:
         for gene in genes:
             literature = await self._pubmed_search(gene, context)
             synthesis = await self._synthesize(gene, context, literature)
-            results.append({
-                "gene": gene,
-                "literature": literature,
-                "synthesis": synthesis,
-            })
+            results.append(
+                {
+                    "gene": gene,
+                    "literature": literature,
+                    "synthesis": synthesis,
+                }
+            )
 
         # Aggregate confidence
         confidences = [r["synthesis"]["confidence"] for r in results]

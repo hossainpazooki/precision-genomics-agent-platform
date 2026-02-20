@@ -19,12 +19,8 @@ def imputer():
 
 
 class TestClassifyMissingness:
-    def test_marks_y_chr_female_as_mnar(
-        self, imputer, sample_proteomics_df, sample_clinical_df
-    ):
-        mnar_mask, _ = imputer.classify_missingness(
-            sample_proteomics_df, sample_clinical_df
-        )
+    def test_marks_y_chr_female_as_mnar(self, imputer, sample_proteomics_df, sample_clinical_df):
+        mnar_mask, _ = imputer.classify_missingness(sample_proteomics_df, sample_clinical_df)
         # Female samples should have MNAR for Y-chr genes that are NaN
         clinical = sample_clinical_df.set_index("sample_id")
         female_samples = clinical[clinical["gender"] == "Female"].index
@@ -34,22 +30,14 @@ class TestClassifyMissingness:
             if sample in mnar_mask.index:
                 for gene in y_genes:
                     if pd.isna(sample_proteomics_df.loc[sample, gene]):
-                        assert mnar_mask.loc[sample, gene], (
-                            f"Expected MNAR at {sample}, {gene}"
-                        )
+                        assert mnar_mask.loc[sample, gene], f"Expected MNAR at {sample}, {gene}"
 
-    def test_marks_random_nan_as_mar(
-        self, imputer, sample_proteomics_df, sample_clinical_df
-    ):
-        _, mar_mask = imputer.classify_missingness(
-            sample_proteomics_df, sample_clinical_df
-        )
+    def test_marks_random_nan_as_mar(self, imputer, sample_proteomics_df, sample_clinical_df):
+        _, mar_mask = imputer.classify_missingness(sample_proteomics_df, sample_clinical_df)
         # MAR mask should flag non-Y-chr NaN in male samples
         clinical = sample_clinical_df.set_index("sample_id")
         male_samples = clinical[clinical["gender"] == "Male"].index
-        non_y_genes = [
-            g for g in sample_proteomics_df.columns if g not in Y_CHROMOSOME_GENES
-        ]
+        non_y_genes = [g for g in sample_proteomics_df.columns if g not in Y_CHROMOSOME_GENES]
 
         for sample in male_samples:
             if sample in mar_mask.index:
@@ -103,40 +91,28 @@ class TestImputeNMF:
 
 
 class TestImputeFullPipeline:
-    def test_returns_filled_matrix(
-        self, imputer, sample_proteomics_df, sample_clinical_df
-    ):
+    def test_returns_filled_matrix(self, imputer, sample_proteomics_df, sample_clinical_df):
         filled, _ = imputer.impute(sample_proteomics_df, sample_clinical_df)
         assert filled.isna().sum().sum() == 0
 
-    def test_returns_stats(
-        self, imputer, sample_proteomics_df, sample_clinical_df
-    ):
+    def test_returns_stats(self, imputer, sample_proteomics_df, sample_clinical_df):
         _, stats = imputer.impute(sample_proteomics_df, sample_clinical_df)
         assert isinstance(stats, dict)
         assert stats["total_missing"] > 0
 
-    def test_mnar_positions_get_zero(
-        self, imputer, sample_proteomics_df, sample_clinical_df
-    ):
-        mnar_mask, _ = imputer.classify_missingness(
-            sample_proteomics_df, sample_clinical_df
-        )
+    def test_mnar_positions_get_zero(self, imputer, sample_proteomics_df, sample_clinical_df):
+        mnar_mask, _ = imputer.classify_missingness(sample_proteomics_df, sample_clinical_df)
         filled, _ = imputer.impute(sample_proteomics_df, sample_clinical_df)
         # MNAR positions should be zero-filled
         if mnar_mask.any().any():
             mnar_values = filled[mnar_mask]
             assert (mnar_values.fillna(0) == 0).all().all()
 
-    def test_preserves_shape(
-        self, imputer, sample_proteomics_df, sample_clinical_df
-    ):
+    def test_preserves_shape(self, imputer, sample_proteomics_df, sample_clinical_df):
         filled, _ = imputer.impute(sample_proteomics_df, sample_clinical_df)
         assert filled.shape == sample_proteomics_df.shape
 
-    def test_stats_keys(
-        self, imputer, sample_proteomics_df, sample_clinical_df
-    ):
+    def test_stats_keys(self, imputer, sample_proteomics_df, sample_clinical_df):
         _, stats = imputer.impute(sample_proteomics_df, sample_clinical_df)
         expected_keys = {"total_missing", "n_mnar", "n_mar", "remaining_nan"}
         assert expected_keys.issubset(set(stats.keys()))

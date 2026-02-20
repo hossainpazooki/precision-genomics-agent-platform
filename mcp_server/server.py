@@ -24,7 +24,7 @@ except ImportError:
     Server = None  # type: ignore[assignment,misc]
     _MCP_AVAILABLE = False
 
-from mcp_server.schemas.omics import (
+from mcp_server.schemas.omics import (  # noqa: E402
     CheckAvailabilityInput,
     EvaluateModelInput,
     ExplainFeaturesInput,
@@ -56,8 +56,7 @@ _TOOL_REGISTRY: dict[str, tuple[type, str, str]] = {
     "check_availability": (
         CheckAvailabilityInput,
         "mcp_server.tools.availability_check",
-        "Check gene availability (fraction of non-missing samples) and "
-        "filter genes by a configurable threshold.",
+        "Check gene availability (fraction of non-missing samples) and filter genes by a configurable threshold.",
     ),
     "select_biomarkers": (
         SelectBiomarkersInput,
@@ -101,10 +100,7 @@ def create_server() -> Server:
         A configured MCP ``Server`` instance ready to run.
     """
     if not _MCP_AVAILABLE:
-        raise ImportError(
-            "The 'mcp' package is required to run the MCP server. "
-            "Install it with: pip install mcp"
-        )
+        raise ImportError("The 'mcp' package is required to run the MCP server. Install it with: pip install mcp")
 
     server = Server("genomics-omics-mcp-server")
 
@@ -152,11 +148,13 @@ def create_server() -> Server:
             return [
                 TextContent(
                     type="text",
-                    text=json.dumps({
-                        "error": str(exc),
-                        "tool": name,
-                        "type": type(exc).__name__,
-                    }),
+                    text=json.dumps(
+                        {
+                            "error": str(exc),
+                            "tool": name,
+                            "type": type(exc).__name__,
+                        }
+                    ),
                 )
             ]
 

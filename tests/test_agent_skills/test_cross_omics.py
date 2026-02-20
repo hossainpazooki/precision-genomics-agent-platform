@@ -12,6 +12,7 @@ from agent_skills.cross_omics_integration import CrossOmicsIntegrationSkill
 def _make_tool_caller(responses: dict) -> AsyncMock:
     async def caller(tool_name, **kwargs):
         return responses.get(tool_name, {})
+
     return AsyncMock(side_effect=caller)
 
 
@@ -146,9 +147,13 @@ async def test_integration_all_steps_present(tool_responses):
     result = await skill.run()
 
     expected_steps = [
-        "load_dataset", "impute_proteomics", "impute_rnaseq",
-        "check_availability", "match_cross_omics",
-        "run_classification", "evaluate_model",
+        "load_dataset",
+        "impute_proteomics",
+        "impute_rnaseq",
+        "check_availability",
+        "match_cross_omics",
+        "run_classification",
+        "evaluate_model",
     ]
     for step in expected_steps:
         assert step in result["steps"], f"Missing step: {step}"

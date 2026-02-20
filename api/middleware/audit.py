@@ -25,9 +25,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.enabled = enabled
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if not self.enabled or request.url.path in self.EXCLUDED_PATHS:
             return await call_next(request)
 

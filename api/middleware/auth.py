@@ -43,17 +43,13 @@ class OptionalAuthMiddleware:
 
         api_key = request.headers.get(API_KEY_HEADER)
         if not api_key:
-            response = _json_response(
-                {"detail": "Missing API key"}, status_code=401
-            )
+            response = _json_response({"detail": "Missing API key"}, status_code=401)
             await response(scope, receive, send)
             return
 
         valid_keys = _parse_api_keys(settings.api_keys)
         if api_key not in valid_keys:
-            response = _json_response(
-                {"detail": "Invalid API key"}, status_code=403
-            )
+            response = _json_response({"detail": "Invalid API key"}, status_code=403)
             await response(scope, receive, send)
             return
 

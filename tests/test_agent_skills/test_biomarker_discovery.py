@@ -11,8 +11,10 @@ from agent_skills.biomarker_discovery import BiomarkerDiscoverySkill
 
 def _make_tool_caller(responses: dict) -> AsyncMock:
     """Create a mock tool caller that returns preset responses keyed by tool name."""
+
     async def caller(tool_name, **kwargs):
         return responses.get(tool_name, {})
+
     return AsyncMock(side_effect=caller)
 
 

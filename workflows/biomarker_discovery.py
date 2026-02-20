@@ -7,7 +7,6 @@ from datetime import UTC, datetime, timedelta
 
 try:
     import temporalio.workflow as workflow
-    from temporalio import workflow as _wf
     from temporalio.common import RetryPolicy
 
     HAS_TEMPORAL = True
@@ -55,9 +54,7 @@ if HAS_TEMPORAL:
         def _advance_phase(self, phase: str) -> None:
             self._progress.current_phase = phase
             self._progress.phases_completed.append(phase)
-            self._progress.phases_remaining = [
-                p for p in PHASES if p not in self._progress.phases_completed
-            ]
+            self._progress.phases_remaining = [p for p in PHASES if p not in self._progress.phases_completed]
 
         @workflow.run
         async def run(self, params: BiomarkerDiscoveryParams) -> BiomarkerDiscoveryResult:

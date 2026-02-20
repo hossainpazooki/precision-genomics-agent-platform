@@ -15,11 +15,13 @@ from mcp_server.schemas.omics import LoadDatasetInput, LoadDatasetOutput
 def mock_loader():
     """Create a mock OmicsDataLoader."""
     loader = MagicMock()
-    loader.load_clinical.return_value = pd.DataFrame({
-        "sample_id": [f"S{i:03d}" for i in range(20)],
-        "MSI_status": ["MSI-H"] * 3 + ["MSS"] * 17,
-        "gender": ["Male"] * 10 + ["Female"] * 10,
-    })
+    loader.load_clinical.return_value = pd.DataFrame(
+        {
+            "sample_id": [f"S{i:03d}" for i in range(20)],
+            "MSI_status": ["MSI-H"] * 3 + ["MSS"] * 17,
+            "gender": ["Male"] * 10 + ["Female"] * 10,
+        }
+    )
     loader.load_proteomics.return_value = pd.DataFrame(
         np.random.rand(20, 50),
         columns=[f"gene_{i}" for i in range(50)],

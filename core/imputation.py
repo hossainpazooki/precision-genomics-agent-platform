@@ -51,9 +51,7 @@ class OmicsImputer:
             gender_map = clinical["gender"].to_dict()
 
         # MNAR: Y-chromosome genes missing in female samples
-        mnar_mask = pd.DataFrame(
-            False, index=expression_matrix.index, columns=expression_matrix.columns
-        )
+        mnar_mask = pd.DataFrame(False, index=expression_matrix.index, columns=expression_matrix.columns)
 
         y_genes_in_data = [g for g in Y_CHROMOSOME_GENES if g in expression_matrix.columns]
 

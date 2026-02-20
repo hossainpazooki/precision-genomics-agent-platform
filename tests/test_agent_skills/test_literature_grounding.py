@@ -93,11 +93,7 @@ async def test_grounding_confidence_counts():
     skill = LiteratureGroundingSkill()
     result = await skill.run(genes=["TAP1", "GBP1"], context="MSI")
 
-    total = (
-        result["n_high_confidence"]
-        + result["n_medium_confidence"]
-        + result["n_low_confidence"]
-    )
+    total = result["n_high_confidence"] + result["n_medium_confidence"] + result["n_low_confidence"]
     assert total == result["n_genes"]
 
 

@@ -12,9 +12,7 @@ except ImportError:
 if HAS_TEMPORAL:
 
     @activity.defn
-    async def generate_interpretation_activity(
-        genes: list[str], target: str
-    ) -> dict:
+    async def generate_interpretation_activity(genes: list[str], target: str) -> dict:
         """Call Anthropic API to generate biological interpretation of gene panel.
 
         Uses RetryPolicy with 3 retries and exponential backoff (configured at

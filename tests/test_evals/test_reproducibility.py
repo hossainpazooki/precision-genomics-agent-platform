@@ -25,6 +25,7 @@ class TestReproducibilityEval:
 
     def test_stochastic_pipeline(self, evaluator):
         """Each run returns completely different genes -> low Jaccard."""
+
         def stochastic_pipeline(seed=0):
             return [f"GENE_{seed}_{i}" for i in range(10)]
 
@@ -57,6 +58,7 @@ class TestReproducibilityEval:
 
     def test_single_run(self, evaluator):
         """n_runs=1 -> no pairs, avg_jaccard=0, should fail."""
+
         def pipeline(seed=0):
             return ["A", "B", "C"]
 
@@ -67,6 +69,7 @@ class TestReproducibilityEval:
 
     def test_empty_features(self, evaluator):
         """Pipeline returning empty results -> all Jaccard = 1.0 (0|0 = 0)."""
+
         def empty_pipeline(seed=0):
             return []
 
@@ -76,6 +79,7 @@ class TestReproducibilityEval:
 
     def test_details_structure(self, evaluator):
         """Verify the details dict has all expected keys."""
+
         def pipeline(seed=0):
             return ["A", "B", "C"]
 

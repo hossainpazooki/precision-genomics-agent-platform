@@ -23,21 +23,63 @@ N_SAMPLES = 20
 SAMPLE_IDS = [f"S{str(i).zfill(3)}" for i in range(1, N_SAMPLES + 1)]
 
 # Phenotype assignments: ~15% MSI-H, ~50/50 gender
-MSI_LABELS = (["MSI-H"] * 3 + ["MSS"] * 17)
-GENDER_LABELS = (["Male"] * 10 + ["Female"] * 10)
+MSI_LABELS = ["MSI-H"] * 3 + ["MSS"] * 17
+GENDER_LABELS = ["Male"] * 10 + ["Female"] * 10
 
 # Proteomics gene names: union of MSI panel + gender Y-chr genes + random extras
-PROTEOMICS_GENES = list(set(MSI_PROTEOMICS_PANEL + Y_CHROMOSOME_GENES + [
-    "BRCA1", "TP53", "EGFR", "KRAS", "PTEN", "APC", "MYC", "CDH1",
-    "VEGFA", "BRAF", "PIK3CA", "ATM", "RB1", "NRAS", "SMAD4",
-]))
+PROTEOMICS_GENES = list(
+    set(
+        MSI_PROTEOMICS_PANEL
+        + Y_CHROMOSOME_GENES
+        + [
+            "BRCA1",
+            "TP53",
+            "EGFR",
+            "KRAS",
+            "PTEN",
+            "APC",
+            "MYC",
+            "CDH1",
+            "VEGFA",
+            "BRAF",
+            "PIK3CA",
+            "ATM",
+            "RB1",
+            "NRAS",
+            "SMAD4",
+        ]
+    )
+)
 
 # RNA-Seq gene names: MSI RNA panel + Y-chr genes + extras (some overlap with proteomics)
-RNASEQ_GENES = list(set(MSI_RNASEQ_PANEL + Y_CHROMOSOME_GENES + [
-    "BRCA1", "TP53", "EGFR", "KRAS", "PTEN", "APC", "MYC", "CDH1",
-    "VEGFA", "BRAF", "PIK3CA", "ATM", "RB1", "NRAS", "SMAD4",
-    "GAPDH", "ACTB", "TUBA1A", "HSP90AA1", "ALB",
-]))
+RNASEQ_GENES = list(
+    set(
+        MSI_RNASEQ_PANEL
+        + Y_CHROMOSOME_GENES
+        + [
+            "BRCA1",
+            "TP53",
+            "EGFR",
+            "KRAS",
+            "PTEN",
+            "APC",
+            "MYC",
+            "CDH1",
+            "VEGFA",
+            "BRAF",
+            "PIK3CA",
+            "ATM",
+            "RB1",
+            "NRAS",
+            "SMAD4",
+            "GAPDH",
+            "ACTB",
+            "TUBA1A",
+            "HSP90AA1",
+            "ALB",
+        ]
+    )
+)
 
 
 def _make_expression_matrix(
@@ -73,34 +115,32 @@ def _make_expression_matrix(
 @pytest.fixture
 def sample_clinical_df() -> pd.DataFrame:
     """Synthetic clinical data matching precisionFDA schema."""
-    return pd.DataFrame({
-        "sample_id": SAMPLE_IDS,
-        "MSI_status": MSI_LABELS,
-        "gender": GENDER_LABELS,
-    })
+    return pd.DataFrame(
+        {
+            "sample_id": SAMPLE_IDS,
+            "MSI_status": MSI_LABELS,
+            "gender": GENDER_LABELS,
+        }
+    )
 
 
 @pytest.fixture
 def sample_proteomics_df() -> pd.DataFrame:
     """Synthetic proteomics expression matrix (samples × genes)."""
-    return _make_expression_matrix(
-        SAMPLE_IDS, PROTEOMICS_GENES, missing_rate=0.10, gender_labels=GENDER_LABELS
-    )
+    return _make_expression_matrix(SAMPLE_IDS, PROTEOMICS_GENES, missing_rate=0.10, gender_labels=GENDER_LABELS)
 
 
 @pytest.fixture
 def sample_rnaseq_df() -> pd.DataFrame:
     """Synthetic RNA-Seq expression matrix (samples × genes)."""
-    return _make_expression_matrix(
-        SAMPLE_IDS, RNASEQ_GENES, missing_rate=0.08, gender_labels=GENDER_LABELS
-    )
+    return _make_expression_matrix(SAMPLE_IDS, RNASEQ_GENES, missing_rate=0.08, gender_labels=GENDER_LABELS)
 
 
 @pytest.fixture
 def sample_mismatch_labels() -> pd.Series:
     """Known mismatch labels for 20 samples (2 are swapped)."""
     labels = [False] * N_SAMPLES
-    labels[3] = True   # S004 is mislabeled
+    labels[3] = True  # S004 is mislabeled
     labels[14] = True  # S015 is mislabeled
     return pd.Series(labels, index=SAMPLE_IDS, name="is_mislabeled")
 
@@ -134,23 +174,21 @@ def tmp_data_dir(tmp_path: object) -> object:
     data_dir.mkdir(parents=True)
 
     # Clinical TSV
-    clinical = pd.DataFrame({
-        "sample_id": SAMPLE_IDS,
-        "MSI_status": MSI_LABELS,
-        "gender": GENDER_LABELS,
-    })
+    clinical = pd.DataFrame(
+        {
+            "sample_id": SAMPLE_IDS,
+            "MSI_status": MSI_LABELS,
+            "gender": GENDER_LABELS,
+        }
+    )
     clinical.to_csv(data_dir / "train_cli.tsv", sep="\t", index=False)
 
     # Proteomics TSV (genes as rows — transposed before save)
-    pro = _make_expression_matrix(
-        SAMPLE_IDS, PROTEOMICS_GENES, missing_rate=0.10, gender_labels=GENDER_LABELS
-    )
+    pro = _make_expression_matrix(SAMPLE_IDS, PROTEOMICS_GENES, missing_rate=0.10, gender_labels=GENDER_LABELS)
     pro.T.to_csv(data_dir / "train_pro.tsv", sep="\t")
 
     # RNA-Seq TSV (genes as rows)
-    rna = _make_expression_matrix(
-        SAMPLE_IDS, RNASEQ_GENES, missing_rate=0.08, gender_labels=GENDER_LABELS
-    )
+    rna = _make_expression_matrix(SAMPLE_IDS, RNASEQ_GENES, missing_rate=0.08, gender_labels=GENDER_LABELS)
     rna.T.to_csv(data_dir / "train_rna.tsv", sep="\t")
 
     return data_dir

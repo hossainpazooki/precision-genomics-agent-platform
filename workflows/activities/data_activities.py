@@ -12,9 +12,7 @@ except ImportError:
 if HAS_TEMPORAL:
 
     @activity.defn
-    async def load_and_validate_data_activity(
-        dataset: str, modalities: list[str]
-    ) -> dict:
+    async def load_and_validate_data_activity(dataset: str, modalities: list[str]) -> dict:
         """Load clinical + molecular data, validate schema, return summary."""
         from core.data_loader import OmicsDataLoader
 
@@ -43,9 +41,7 @@ if HAS_TEMPORAL:
                 summary[f"n_{modality}_features"] = df.shape[1]
                 summary[f"n_{modality}_samples"] = df.shape[0]
             except FileNotFoundError:
-                activity.logger.warning(
-                    "Modality %s not found for dataset %s", modality, dataset
-                )
+                activity.logger.warning("Modality %s not found for dataset %s", modality, dataset)
 
         return summary
 
@@ -88,16 +84,12 @@ if HAS_TEMPORAL:
             "modality": modality,
             "n_samples": df.shape[0],
             "n_features": df.shape[1],
-            "missing_pct": round(
-                df.isna().sum().sum() / (df.shape[0] * df.shape[1]) * 100, 2
-            ),
+            "missing_pct": round(df.isna().sum().sum() / (df.shape[0] * df.shape[1]) * 100, 2),
             "sample_ids": list(df.index),
         }
 
     @activity.defn
-    async def run_classification_qc_activity(
-        dataset: str, methods: list[str]
-    ) -> dict:
+    async def run_classification_qc_activity(dataset: str, methods: list[str]) -> dict:
         """Run classification-based mismatch detection."""
         return {
             "dataset": dataset,

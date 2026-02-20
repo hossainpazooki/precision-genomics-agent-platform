@@ -47,9 +47,7 @@ async def run_tool(
     # Compute imputation impact if we have both original and imputed
     impact: dict[str, float] = {}
     if expression_matrix is not None and imputed_matrix is not None:
-        comparison = filt.compare_pre_post_imputation(
-            expression_matrix, imputed_matrix, input_data.threshold
-        )
+        comparison = filt.compare_pre_post_imputation(expression_matrix, imputed_matrix, input_data.threshold)
         impact = {
             "genes_rescued": float(len(comparison.get("genes_rescued", []))),
             "before_count": float(comparison.get("before_count", 0)),

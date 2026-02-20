@@ -9,27 +9,85 @@ used for biological validation of agent-selected biomarkers.
 # ---------------------------------------------------------------------------
 
 MSI_PROTEOMICS_PANEL: list[str] = [
-    "TAP1", "LCP1", "PTPN6", "CASK", "ICAM1", "ITGB2", "CKB", "LAP3",
-    "PTPRC", "HSDL2", "WARS", "IFI35", "TYMP", "TAPBP", "ERMP1", "ANP32E",
-    "ROCK2", "CNDP2", "RFTN1", "GBP1", "NCF2", "YARS2", "RPL3", "ENO1",
-    "SNX12", "ARL3",
+    "TAP1",
+    "LCP1",
+    "PTPN6",
+    "CASK",
+    "ICAM1",
+    "ITGB2",
+    "CKB",
+    "LAP3",
+    "PTPRC",
+    "HSDL2",
+    "WARS",
+    "IFI35",
+    "TYMP",
+    "TAPBP",
+    "ERMP1",
+    "ANP32E",
+    "ROCK2",
+    "CNDP2",
+    "RFTN1",
+    "GBP1",
+    "NCF2",
+    "YARS2",
+    "RPL3",
+    "ENO1",
+    "SNX12",
+    "ARL3",
 ]
 
 MSI_RNASEQ_PANEL: list[str] = [
-    "EPDR1", "APOL3", "POU5F1B", "CFTR", "CIITA", "MAX", "PRSS23",
-    "FABP6", "GABRP", "SLC19A3", "RAMP1", "AREG", "EREG", "TNNC2",
-    "ANKRD27", "PLCL2", "TFCP2L1", "LAG3", "GRM8", "BEX2", "DEFB1",
-    "IRF1", "CCL4", "SLC51B", "GBP4", "HPSE",
+    "EPDR1",
+    "APOL3",
+    "POU5F1B",
+    "CFTR",
+    "CIITA",
+    "MAX",
+    "PRSS23",
+    "FABP6",
+    "GABRP",
+    "SLC19A3",
+    "RAMP1",
+    "AREG",
+    "EREG",
+    "TNNC2",
+    "ANKRD27",
+    "PLCL2",
+    "TFCP2L1",
+    "LAG3",
+    "GRM8",
+    "BEX2",
+    "DEFB1",
+    "IRF1",
+    "CCL4",
+    "SLC51B",
+    "GBP4",
+    "HPSE",
 ]
 
 GENDER_PROTEOMICS_PANEL: list[str] = [
-    "DDX3Y", "EIF1AY", "KDM5D", "RPS4Y1", "USP9Y", "UTY", "ZFY",
-    "KDM5C", "XIST",
+    "DDX3Y",
+    "EIF1AY",
+    "KDM5D",
+    "RPS4Y1",
+    "USP9Y",
+    "UTY",
+    "ZFY",
+    "KDM5C",
+    "XIST",
 ]
 
 GENDER_RNASEQ_PANEL: list[str] = [
-    "DDX3Y", "EIF1AY", "KDM5D", "RPS4Y1", "USP9Y", "UTY", "ZFY",
-    "XIST", "TSIX",
+    "DDX3Y",
+    "EIF1AY",
+    "KDM5D",
+    "RPS4Y1",
+    "USP9Y",
+    "UTY",
+    "ZFY",
+    "XIST",
+    "TSIX",
 ]
 
 # Top RF importance scores from original notebooks
@@ -53,18 +111,20 @@ KNOWN_MSI_PATHWAY_MARKERS: dict[str, list[str]] = {
 }
 
 # All known MSI markers flattened
-ALL_KNOWN_MSI_MARKERS: set[str] = {
-    gene
-    for genes in KNOWN_MSI_PATHWAY_MARKERS.values()
-    for gene in genes
-}
+ALL_KNOWN_MSI_MARKERS: set[str] = {gene for genes in KNOWN_MSI_PATHWAY_MARKERS.values() for gene in genes}
 
 # ---------------------------------------------------------------------------
 # Y-Chromosome Genes (for MNAR classification in female samples)
 # ---------------------------------------------------------------------------
 
 Y_CHROMOSOME_GENES: list[str] = [
-    "DDX3Y", "EIF1AY", "KDM5D", "RPS4Y1", "USP9Y", "UTY", "ZFY",
+    "DDX3Y",
+    "EIF1AY",
+    "KDM5D",
+    "RPS4Y1",
+    "USP9Y",
+    "UTY",
+    "ZFY",
 ]
 
 # ---------------------------------------------------------------------------

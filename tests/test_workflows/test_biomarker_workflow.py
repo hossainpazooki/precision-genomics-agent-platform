@@ -112,6 +112,7 @@ class TestBiomarkerDiscoveryWorkflowLogic:
     def test_workflow_phases_defined(self):
         try:
             from workflows.biomarker_discovery import PHASES
+
             assert "load_and_validate" in PHASES
             assert "feature_selection" in PHASES
             assert "compile_report" in PHASES
@@ -171,9 +172,13 @@ class TestBiomarkerDiscoveryWorkflowLogic:
             current_phase="pending",
             phases_completed=[],
             phases_remaining=[
-                "load_and_validate", "impute", "feature_selection",
-                "integrate_and_filter", "train_and_evaluate",
-                "interpret", "compile_report",
+                "load_and_validate",
+                "impute",
+                "feature_selection",
+                "integrate_and_filter",
+                "train_and_evaluate",
+                "interpret",
+                "compile_report",
             ],
         )
         progress.phases_completed.append("load_and_validate")

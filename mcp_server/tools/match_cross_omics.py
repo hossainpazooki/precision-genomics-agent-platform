@@ -34,9 +34,7 @@ async def run_tool(
 
     # Determine shared gene set if not provided
     if gene_set is None and proteomics_df is not None and rnaseq_df is not None:
-        gene_set = sorted(
-            set(proteomics_df.columns) & set(rnaseq_df.columns)
-        )
+        gene_set = sorted(set(proteomics_df.columns) & set(rnaseq_df.columns))
 
     # Build distance matrix
     distance_matrix = matcher.build_distance_matrix(

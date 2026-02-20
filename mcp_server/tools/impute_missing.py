@@ -48,9 +48,7 @@ async def run_tool(
     imputed_vals = imputed_matrix.values.copy()
     observed_mask = ~np.isnan(original_vals)
     if observed_mask.sum() > 0:
-        recon_error = float(
-            np.mean((original_vals[observed_mask] - imputed_vals[observed_mask]) ** 2)
-        )
+        recon_error = float(np.mean((original_vals[observed_mask] - imputed_vals[observed_mask]) ** 2))
     else:
         recon_error = 0.0
 

@@ -146,19 +146,17 @@ if HAS_TEMPORAL:
                 self._progress.status = WorkflowStatus.FAILED
 
                 # Saga compensation: quarantine flagged samples on failure
-                all_flagged = list(
-                    set(flagged_by_classification) | set(flagged_by_distance)
-                )
+                all_flagged = list(set(flagged_by_classification) | set(flagged_by_distance))
                 if all_flagged:
-                    try:
+                    import contextlib
+
+                    with contextlib.suppress(Exception):
                         await workflow.execute_activity(
                             "quarantine_samples_activity",
                             args=[all_flagged],
                             start_to_close_timeout=timedelta(minutes=5),
                             retry_policy=DEFAULT_RETRY,
                         )
-                    except Exception:
-                        pass  # Best-effort compensation
 
                 return SampleQCResult(
                     workflow_id=wf_id,

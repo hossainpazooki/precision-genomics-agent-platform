@@ -2,137 +2,57 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
-from fastapi.testclient import TestClient
-
-from api.main import create_app
 
 
-@pytest.fixture
-def client():
-    app = create_app()
-    return TestClient(app)
+class TestRunWorkflow:
+    def test_run_biomarker_discovery(self, client):
+        response = client.post("/workflows/run?workflow_type=biomarker_discovery")
+        assert response.status_code == 200
+        data = response.json()
+        assert "workflow_id" in data
+
+    def test_run_sample_qc(self, client):
+        response = client.post("/workflows/run?workflow_type=sample_qc")
+        assert response.status_code == 200
+        data = response.json()
+        assert "workflow_id" in data
+
+    def test_run_invalid_type(self, client):
+        response = client.post("/workflows/run?workflow_type=invalid_type")
+        assert response.status_code == 400
+        assert "Invalid workflow type" in response.json()["detail"]
+
+    def test_run_with_params(self, client):
+        response = client.post(
+            "/workflows/run?workflow_type=biomarker_discovery",
+            json={"dataset": "test"},
+        )
+        assert response.status_code == 200
 
 
-class TestWorkflowEndpoints:
-    def test_run_workflow_biomarker_discovery(self, client):
-        """POST /workflows/run with biomarker_discovery type."""
-        with patch(
-            "api.routes.workflows._get_temporal_client",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            response = client.post(
-                "/workflows/run",
-                params={"workflow_type": "biomarker_discovery"},
-                json={},
-            )
-            assert response.status_code == 200
-            data = response.json()
-            assert "workflow_id" in data
-            assert data["workflow_id"].startswith("biomarker_discovery-")
+class TestGetWorkflowStatus:
+    def test_status_for_known_workflow(self, client):
+        post_resp = client.post("/workflows/run?workflow_type=biomarker_discovery")
+        wf_id = post_resp.json()["workflow_id"]
+        status_resp = client.get(f"/workflows/{wf_id}/status")
+        assert status_resp.status_code == 200
+        data = status_resp.json()
+        assert data["workflow_id"] == wf_id
 
-    def test_run_workflow_sample_qc(self, client):
-        """POST /workflows/run with sample_qc type."""
-        with patch(
-            "api.routes.workflows._get_temporal_client",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            response = client.post(
-                "/workflows/run",
-                params={"workflow_type": "sample_qc"},
-                json={},
-            )
-            assert response.status_code == 200
-            data = response.json()
-            assert data["workflow_id"].startswith("sample_qc-")
+    def test_status_for_unknown_workflow(self, client):
+        response = client.get("/workflows/nonexistent-id/status")
+        assert response.status_code == 404
 
-    def test_run_workflow_returns_pending_without_temporal(self, client):
-        """Without Temporal, workflow should be PENDING."""
-        with patch(
-            "api.routes.workflows._get_temporal_client",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            response = client.post(
-                "/workflows/run",
-                params={"workflow_type": "biomarker_discovery"},
-                json={},
-            )
-            assert response.json()["status"] == "pending"
 
-    def test_get_workflow_status_not_found(self, client):
-        """GET /workflows/{id}/status should 404 without Temporal."""
-        with patch(
-            "api.routes.workflows._get_temporal_client",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            response = client.get("/workflows/nonexistent-123/status")
-            assert response.status_code == 404
+class TestCancelWorkflow:
+    def test_cancel_known_workflow(self, client):
+        post_resp = client.post("/workflows/run?workflow_type=sample_qc")
+        wf_id = post_resp.json()["workflow_id"]
+        cancel_resp = client.post(f"/workflows/{wf_id}/cancel")
+        assert cancel_resp.status_code == 200
+        assert cancel_resp.json()["status"] == "cancelled"
 
-    def test_cancel_workflow_no_temporal(self, client):
-        """POST /workflows/{id}/cancel should 503 without Temporal."""
-        with patch(
-            "api.routes.workflows._get_temporal_client",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            response = client.post("/workflows/nonexistent-123/cancel")
-            assert response.status_code == 503
-
-    def test_cancel_workflow_with_temporal(self, client):
-        """POST /workflows/{id}/cancel should succeed with Temporal."""
-        mock_client = AsyncMock()
-        mock_handle = AsyncMock()
-        mock_client.get_workflow_handle.return_value = mock_handle
-
-        with patch(
-            "api.routes.workflows._get_temporal_client",
-            new_callable=AsyncMock,
-            return_value=mock_client,
-        ):
-            response = client.post("/workflows/wf-001/cancel")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "cancelled"
-
-    def test_get_status_with_temporal(self, client):
-        """GET /workflows/{id}/status should return status from Temporal."""
-        mock_client = AsyncMock()
-        mock_handle = AsyncMock()
-        mock_desc = MagicMock()
-        mock_desc.status.name = "RUNNING"
-        mock_desc.run_id = "run-001"
-        mock_desc.workflow_type = "BiomarkerDiscoveryWorkflow"
-        mock_desc.start_time = None
-        mock_desc.close_time = None
-        mock_handle.describe.return_value = mock_desc
-        mock_client.get_workflow_handle.return_value = mock_handle
-
-        with patch(
-            "api.routes.workflows._get_temporal_client",
-            new_callable=AsyncMock,
-            return_value=mock_client,
-        ):
-            response = client.get("/workflows/wf-001/status")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "running"
-
-    def test_run_workflow_with_params(self, client):
-        """POST /workflows/run should accept custom params."""
-        with patch(
-            "api.routes.workflows._get_temporal_client",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            response = client.post(
-                "/workflows/run",
-                params={"workflow_type": "biomarker_discovery"},
-                json={"dataset": "test", "target": "gender"},
-            )
-            assert response.status_code == 200
+    def test_cancel_unknown_workflow(self, client):
+        response = client.post("/workflows/nonexistent-id/cancel")
+        assert response.status_code == 404

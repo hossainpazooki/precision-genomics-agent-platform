@@ -48,20 +48,14 @@ async def run_tool(
     ]
 
     # Compare to original panels
-    original_panel = (
-        MSI_PROTEOMICS_PANEL
-        if input_data.modality == "proteomics"
-        else MSI_RNASEQ_PANEL
-    )
+    original_panel = MSI_PROTEOMICS_PANEL if input_data.modality == "proteomics" else MSI_RNASEQ_PANEL
     selected_genes = {f.name for f in panel.features}
     original_set = set(original_panel)
 
     overlap = selected_genes & original_set
     comparison: dict[str, float] = {
         "overlap_count": float(len(overlap)),
-        "overlap_fraction": round(
-            len(overlap) / max(len(original_set), 1), 4
-        ),
+        "overlap_fraction": round(len(overlap) / max(len(original_set), 1), 4),
         "novel_count": float(len(selected_genes - original_set)),
     }
 

@@ -66,9 +66,7 @@ class MultiStrategySelector:
     def __init__(self, random_state: int = 42):
         self.random_state = random_state
 
-    def _prepare_data(
-        self, X: pd.DataFrame, y: pd.Series
-    ) -> tuple[np.ndarray, np.ndarray, list[str]]:
+    def _prepare_data(self, X: pd.DataFrame, y: pd.Series) -> tuple[np.ndarray, np.ndarray, list[str]]:
         """Fill NaN and encode labels."""
         X_clean = X.fillna(0.0).values
         gene_names = list(X.columns)
@@ -298,7 +296,7 @@ class MultiStrategySelector:
 
         for delta in deltas:
             errors = []
-            for train_idx, test_idx in folds:
+            for _train_idx, test_idx in folds:
                 preds = _classify(X_clean[test_idx], delta)
                 error = 1.0 - np.mean(preds == y_enc[test_idx])
                 errors.append(error)
@@ -441,11 +439,7 @@ class MultiStrategySelector:
             # Genes selected by all methods that produced results
             active_methods = [m for m, r in method_results.items() if len(r) > 0]
             if active_methods:
-                selected_genes = [
-                    g
-                    for g, methods in gene_methods.items()
-                    if len(methods) >= len(active_methods)
-                ]
+                selected_genes = [g for g, methods in gene_methods.items() if len(methods) >= len(active_methods)]
             else:
                 selected_genes = []
 
@@ -456,9 +450,7 @@ class MultiStrategySelector:
             gene_weights: dict[str, float] = {}
             for features in method_results.values():
                 for feat in features:
-                    gene_weights[feat.name] = gene_weights.get(feat.name, 0.0) + (
-                        1.0 / max(feat.rank, 1)
-                    )
+                    gene_weights[feat.name] = gene_weights.get(feat.name, 0.0) + (1.0 / max(feat.rank, 1))
 
             ranked = sorted(gene_weights.items(), key=lambda x: x[1], reverse=True)
             selected_genes = [g for g, _ in ranked[:n_top]]
@@ -469,10 +461,11 @@ class MultiStrategySelector:
         gene_best_pvalue: dict[str, float | None] = {}
         for features in method_results.values():
             for feat in features:
-                if feat.name in selected_genes:
-                    if feat.name not in gene_best_score or feat.score > gene_best_score[feat.name]:
-                        gene_best_score[feat.name] = feat.score
-                        gene_best_pvalue[feat.name] = feat.p_value
+                if feat.name in selected_genes and (
+                    feat.name not in gene_best_score or feat.score > gene_best_score[feat.name]
+                ):
+                    gene_best_score[feat.name] = feat.score
+                    gene_best_pvalue[feat.name] = feat.p_value
 
         panel_features: list[SelectedFeature] = []
         for rank, gene in enumerate(selected_genes, 1):

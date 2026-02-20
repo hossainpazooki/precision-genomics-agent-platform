@@ -65,16 +65,12 @@ class TestANOVA:
             assert feat.method == "anova"
 
     def test_bonferroni_correction(self, selector, small_X, binary_y):
-        results = selector.anova_selection(
-            small_X, binary_y, correction="bonferroni"
-        )
+        results = selector.anova_selection(small_X, binary_y, correction="bonferroni")
         for feat in results:
             assert feat.p_value is not None
 
     def test_bh_correction(self, selector, small_X, binary_y):
-        results = selector.anova_selection(
-            small_X, binary_y, correction="fdr_bh"
-        )
+        results = selector.anova_selection(small_X, binary_y, correction="fdr_bh")
         # BH correction is less stringent, may yield more results
         assert isinstance(results, list)
 
@@ -132,25 +128,19 @@ class TestNSC:
 
 class TestRandomForest:
     def test_returns_features(self, selector, small_X, binary_y):
-        results = selector.random_forest_selection(
-            small_X, binary_y, n_estimators=50, cv_folds=2
-        )
+        results = selector.random_forest_selection(small_X, binary_y, n_estimators=50, cv_folds=2)
         assert isinstance(results, list)
         for feat in results:
             assert isinstance(feat, SelectedFeature)
             assert feat.method == "random_forest"
 
     def test_importance_scores(self, selector, small_X, binary_y):
-        results = selector.random_forest_selection(
-            small_X, binary_y, n_estimators=50, cv_folds=2
-        )
+        results = selector.random_forest_selection(small_X, binary_y, n_estimators=50, cv_folds=2)
         for feat in results:
             assert feat.score > 0
 
     def test_grid_search_completes(self, selector, small_X, gender_y):
-        results = selector.random_forest_selection(
-            small_X, gender_y, n_estimators=50, cv_folds=2
-        )
+        results = selector.random_forest_selection(small_X, gender_y, n_estimators=50, cv_folds=2)
         assert isinstance(results, list)
 
 
@@ -160,36 +150,43 @@ class TestRandomForest:
 class TestEnsembleSelect:
     def test_union_weighted(self, selector, small_X, binary_y):
         panel = selector.ensemble_select(
-            small_X, binary_y, target="msi", modality="proteomics",
-            strategy="union_weighted", n_top=10,
+            small_X,
+            binary_y,
+            target="msi",
+            modality="proteomics",
+            strategy="union_weighted",
+            n_top=10,
         )
         assert isinstance(panel, FeaturePanel)
         assert panel.target == "msi"
         assert panel.modality == "proteomics"
 
     def test_returns_feature_panel(self, selector, small_X, binary_y):
-        panel = selector.ensemble_select(
-            small_X, binary_y, target="msi", modality="proteomics"
-        )
+        panel = selector.ensemble_select(small_X, binary_y, target="msi", modality="proteomics")
         assert isinstance(panel, FeaturePanel)
         assert isinstance(panel.features, list)
 
     def test_method_agreement(self, selector, small_X, binary_y):
-        panel = selector.ensemble_select(
-            small_X, binary_y, target="msi", modality="proteomics"
-        )
+        panel = selector.ensemble_select(small_X, binary_y, target="msi", modality="proteomics")
         assert isinstance(panel.method_agreement, dict)
 
     def test_feature_count_within_n_top(self, selector, small_X, binary_y):
         panel = selector.ensemble_select(
-            small_X, binary_y, target="msi", modality="proteomics",
-            strategy="union_weighted", n_top=5,
+            small_X,
+            binary_y,
+            target="msi",
+            modality="proteomics",
+            strategy="union_weighted",
+            n_top=5,
         )
         assert len(panel.features) <= 5
 
     def test_multiple_modalities(self, selector, small_X, gender_y):
         panel = selector.ensemble_select(
-            small_X, gender_y, target="gender", modality="rnaseq",
+            small_X,
+            gender_y,
+            target="gender",
+            modality="rnaseq",
             n_top=15,
         )
         assert panel.target == "gender"

@@ -20,9 +20,7 @@ class CrossOmicsIntegrationSkill:
 
     async def _call_tool(self, tool_name: str, **kwargs: Any) -> dict:
         if self.tool_caller is None:
-            raise RuntimeError(
-                "No tool_caller configured for CrossOmicsIntegrationSkill"
-            )
+            raise RuntimeError("No tool_caller configured for CrossOmicsIntegrationSkill")
         result = self.tool_caller(tool_name, **kwargs)
         if hasattr(result, "__await__"):
             result = await result

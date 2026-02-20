@@ -20,7 +20,8 @@ def shared_genes():
 def sample_proteomics(shared_genes):
     rng = np.random.RandomState(42)
     return pd.DataFrame(
-        rng.rand(20, 15), columns=shared_genes,
+        rng.rand(20, 15),
+        columns=shared_genes,
         index=[f"S{i:03d}" for i in range(20)],
     )
 
@@ -29,7 +30,8 @@ def sample_proteomics(shared_genes):
 def sample_rnaseq(shared_genes):
     rng = np.random.RandomState(99)
     return pd.DataFrame(
-        rng.rand(20, 15), columns=shared_genes,
+        rng.rand(20, 15),
+        columns=shared_genes,
         index=[f"S{i:03d}" for i in range(20)],
     )
 
@@ -39,7 +41,9 @@ def mock_matcher():
     """Create a mock CrossOmicsMatcher."""
     matcher = MagicMock()
     matcher.compute_gene_correlations.return_value = {
-        "gene_0": 0.85, "gene_1": 0.72, "gene_2": 0.91,
+        "gene_0": 0.85,
+        "gene_1": 0.72,
+        "gene_2": 0.91,
     }
     dm = np.eye(20)
     matcher.build_distance_matrix.return_value = dm

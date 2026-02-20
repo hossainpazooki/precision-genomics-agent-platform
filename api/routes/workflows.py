@@ -23,8 +23,7 @@ async def run_workflow(workflow_type: str, params: dict | None = None) -> dict:
     if workflow_type not in VALID_WORKFLOW_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid workflow type: {workflow_type}. "
-            f"Valid types: {', '.join(sorted(VALID_WORKFLOW_TYPES))}",
+            detail=f"Invalid workflow type: {workflow_type}. Valid types: {', '.join(sorted(VALID_WORKFLOW_TYPES))}",
         )
 
     workflow_id = f"{workflow_type}-{uuid.uuid4().hex[:12]}"
@@ -123,9 +122,7 @@ async def get_workflow_status(workflow_id: str) -> dict:
             "run_id": desc.run_id,
         }
     except Exception:
-        raise HTTPException(
-            status_code=404, detail=f"Workflow {workflow_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found") from None
 
 
 @router.post("/{workflow_id}/cancel")
@@ -164,6 +161,4 @@ async def cancel_workflow(workflow_id: str) -> dict:
             "message": "Workflow cancel requested",
         }
     except Exception:
-        raise HTTPException(
-            status_code=404, detail=f"Workflow {workflow_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found") from None

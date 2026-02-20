@@ -37,9 +37,7 @@ class OmicsDataLoader:
         df = pd.read_csv(path, sep="\t", index_col=0)
         return df.T
 
-    def merge_clinical_molecular(
-        self, clinical_df: pd.DataFrame, molecular_df: pd.DataFrame
-    ) -> pd.DataFrame:
+    def merge_clinical_molecular(self, clinical_df: pd.DataFrame, molecular_df: pd.DataFrame) -> pd.DataFrame:
         """Merge clinical and molecular data on sample index."""
         clinical = clinical_df.copy()
         if "sample_id" in clinical.columns:
@@ -68,18 +66,14 @@ class OmicsDataLoader:
         try:
             pro = self.load_proteomics(dataset)
             summary["n_proteomics_features"] = pro.shape[1]
-            summary["pct_missing_proteomics"] = round(
-                pro.isna().sum().sum() / (pro.shape[0] * pro.shape[1]) * 100, 2
-            )
+            summary["pct_missing_proteomics"] = round(pro.isna().sum().sum() / (pro.shape[0] * pro.shape[1]) * 100, 2)
         except FileNotFoundError:
             summary["n_proteomics_features"] = 0
 
         try:
             rna = self.load_rnaseq(dataset)
             summary["n_rnaseq_features"] = rna.shape[1]
-            summary["pct_missing_rnaseq"] = round(
-                rna.isna().sum().sum() / (rna.shape[0] * rna.shape[1]) * 100, 2
-            )
+            summary["pct_missing_rnaseq"] = round(rna.isna().sum().sum() / (rna.shape[0] * rna.shape[1]) * 100, 2)
         except FileNotFoundError:
             summary["n_rnaseq_features"] = 0
 

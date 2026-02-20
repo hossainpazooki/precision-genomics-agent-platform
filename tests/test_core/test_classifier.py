@@ -20,9 +20,7 @@ def clean_X(sample_proteomics_df):
 
 
 @pytest.fixture
-def fitted_classifier(
-    classifier, clean_X, sample_gender_labels, sample_msi_labels, sample_mismatch_labels
-):
+def fitted_classifier(classifier, clean_X, sample_gender_labels, sample_msi_labels, sample_mismatch_labels):
     classifier.fit(clean_X, sample_gender_labels, sample_msi_labels, sample_mismatch_labels)
     return classifier
 

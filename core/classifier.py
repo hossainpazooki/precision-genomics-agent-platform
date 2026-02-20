@@ -169,9 +169,7 @@ class EnsembleMismatchClassifier:
 
         meta_features = self._generate_meta_features(X_scaled, y_gender_arr, y_msi_arr, n_folds)
 
-        self.meta_learner_ = LogisticRegression(
-            random_state=self.random_state, max_iter=5000
-        )
+        self.meta_learner_ = LogisticRegression(random_state=self.random_state, max_iter=5000)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self.meta_learner_.fit(meta_features, mismatch_arr)
@@ -194,9 +192,7 @@ class EnsembleMismatchClassifier:
         for _clf_name, clf_template in base_classifiers.items():
             for _target_name, y_target in [("gender", y_gender), ("msi", y_msi)]:
                 clf = _clone_estimator(clf_template)
-                cv = StratifiedKFold(
-                    n_splits=n_folds, shuffle=True, random_state=self.random_state
-                )
+                cv = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=self.random_state)
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     try:
@@ -283,12 +279,8 @@ class EnsembleMismatchClassifier:
 
         metrics: dict = {
             "f1": float(f1_score(y_true, preds, average="weighted", zero_division=0)),
-            "precision": float(
-                precision_score(y_true, preds, average="weighted", zero_division=0)
-            ),
-            "recall": float(
-                recall_score(y_true, preds, average="weighted", zero_division=0)
-            ),
+            "precision": float(precision_score(y_true, preds, average="weighted", zero_division=0)),
+            "recall": float(recall_score(y_true, preds, average="weighted", zero_division=0)),
             "confusion_matrix": confusion_matrix(y_true, preds).tolist(),
         }
 
@@ -305,6 +297,7 @@ def _clone_estimator(estimator):
     """Clone a scikit-learn estimator."""
     try:
         from sklearn.base import clone
+
         return clone(estimator)
     except Exception:
         return estimator

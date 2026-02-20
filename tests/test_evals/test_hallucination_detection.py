@@ -92,6 +92,7 @@ class TestHallucinationDetectionEval:
 
     def test_verifier_exception_handling(self):
         """Verifier that raises exceptions -> treated as invalid."""
+
         def exploding_verifier(pmid: str) -> bool:
             raise RuntimeError("Network error")
 
@@ -99,6 +100,7 @@ class TestHallucinationDetectionEval:
         interpretations = [
             {"text": "Gene A", "pubmed_ids": ["12345"]},
         ]
+
         # The verifier raises, but evaluate should handle it.
         # Since the verifier raises, self.pubmed_verifier returns the exception
         # which is truthy -- but actually since it raises, it propagates.

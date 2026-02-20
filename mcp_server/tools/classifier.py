@@ -42,9 +42,12 @@ async def run_tool(
     per_clf_f1 = metrics.get("per_classifier_f1", predictions.get("per_classifier_f1", {}))
 
     # Strategy comparison
-    strategy_comparison = predictions.get("strategy_comparison", {
-        input_data.phenotype_strategy: ensemble_f1,
-    })
+    strategy_comparison = predictions.get(
+        "strategy_comparison",
+        {
+            input_data.phenotype_strategy: ensemble_f1,
+        },
+    )
 
     # Feature importances from predictions
     importances = predictions.get("feature_importances", [])

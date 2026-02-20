@@ -73,12 +73,7 @@ def init_timescaledb_hypertable(table_name: str, time_column: str = "ts") -> Non
     try:
         with engine.connect() as conn:
             result = conn.execute(
-                text(
-                    "SELECT EXISTS ("
-                    "  SELECT FROM information_schema.tables"
-                    "  WHERE table_name = :table_name"
-                    ")"
-                ),
+                text("SELECT EXISTS (  SELECT FROM information_schema.tables  WHERE table_name = :table_name)"),
                 {"table_name": table_name},
             )
             if not result.scalar():
@@ -98,8 +93,7 @@ def init_timescaledb_hypertable(table_name: str, time_column: str = "ts") -> Non
 
             conn.execute(
                 text(
-                    "SELECT create_hypertable(:table_name, :time_column,"
-                    " if_not_exists => TRUE, migrate_data => TRUE)"
+                    "SELECT create_hypertable(:table_name, :time_column, if_not_exists => TRUE, migrate_data => TRUE)"
                 ),
                 {"table_name": table_name, "time_column": time_column},
             )

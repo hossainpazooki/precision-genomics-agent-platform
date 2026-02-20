@@ -40,9 +40,7 @@ if HAS_TEMPORAL:
         }
 
     @activity.defn
-    async def select_features_activity(
-        dataset: str, target: str, modality: str, n_top: int = 30
-    ) -> dict:
+    async def select_features_activity(dataset: str, target: str, modality: str, n_top: int = 30) -> dict:
         """Select top features for a given modality using statistical methods."""
         from core.data_loader import OmicsDataLoader
 
@@ -69,9 +67,7 @@ if HAS_TEMPORAL:
         }
 
     @activity.defn
-    async def integrate_and_filter_activity(
-        feature_panels: list[dict], threshold: float = 0.9
-    ) -> dict:
+    async def integrate_and_filter_activity(feature_panels: list[dict], threshold: float = 0.9) -> dict:
         """Integrate feature panels from multiple modalities and filter."""
         all_features: list[str] = []
         modalities_included: list[str] = []
@@ -96,15 +92,12 @@ if HAS_TEMPORAL:
             "modalities": modalities_included,
             "threshold": threshold,
             "n_per_modality": {
-                panel.get("modality", "unknown"): len(panel.get("features", []))
-                for panel in feature_panels
+                panel.get("modality", "unknown"): len(panel.get("features", [])) for panel in feature_panels
             },
         }
 
     @activity.defn
-    async def train_and_evaluate_activity(
-        dataset: str, features: list[str], target: str
-    ) -> dict:
+    async def train_and_evaluate_activity(dataset: str, features: list[str], target: str) -> dict:
         """Train a classifier on selected features and evaluate performance."""
         if not features:
             return {
@@ -127,9 +120,7 @@ if HAS_TEMPORAL:
         }
 
     @activity.defn
-    async def run_distance_matrix_activity(
-        dataset: str, n_iterations: int = 100
-    ) -> dict:
+    async def run_distance_matrix_activity(dataset: str, n_iterations: int = 100) -> dict:
         """Run distance matrix-based QC for sample mismatch detection."""
         return {
             "dataset": dataset,
@@ -140,9 +131,7 @@ if HAS_TEMPORAL:
         }
 
     @activity.defn
-    async def cross_validate_flags_activity(
-        classification_flags: list[str], distance_flags: list[str]
-    ) -> dict:
+    async def cross_validate_flags_activity(classification_flags: list[str], distance_flags: list[str]) -> dict:
         """Cross-validate flags from classification and distance methods."""
         classification_set = set(classification_flags)
         distance_set = set(distance_flags)
@@ -152,14 +141,10 @@ if HAS_TEMPORAL:
         distance_only = list(distance_set - classification_set)
 
         total_flagged = len(classification_set | distance_set)
-        concordance_rate = (
-            len(concordant) / total_flagged if total_flagged > 0 else 1.0
-        )
+        concordance_rate = len(concordant) / total_flagged if total_flagged > 0 else 1.0
 
         return {
-            "concordant_flags": [
-                {"sample_id": s, "concordance": "high"} for s in concordant
-            ],
+            "concordant_flags": [{"sample_id": s, "concordance": "high"} for s in concordant],
             "classification_only": classification_only,
             "distance_only": distance_only,
             "concordance_rate": concordance_rate,

@@ -121,6 +121,7 @@ class TestSampleQCWorkflowLogic:
     def test_workflow_phases_defined(self):
         try:
             from workflows.sample_qc import PHASES
+
             assert "load_clinical" in PHASES
             assert "cross_validate" in PHASES
             assert "generate_report" in PHASES

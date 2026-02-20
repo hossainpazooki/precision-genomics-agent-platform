@@ -60,9 +60,7 @@ def _get_panels_from_db() -> list[dict]:
                         "modality": p.modality,
                         "n_features": len(p.features),
                         "features": p.features,
-                        "created_at": p.created_at.isoformat() + "Z"
-                        if p.created_at
-                        else None,
+                        "created_at": p.created_at.isoformat() + "Z" if p.created_at else None,
                     }
                     for p in panels
                 ]

@@ -33,8 +33,7 @@ async def run_tool(input_data: ExplainFeaturesInput) -> ExplainFeaturesOutput:
         # Generate description
         if explanation["pathways"]:
             explanation["description"] = (
-                f"{gene} is a known MSI-associated marker involved in "
-                f"{', '.join(explanation['pathways'])} pathway(s)."
+                f"{gene} is a known MSI-associated marker involved in {', '.join(explanation['pathways'])} pathway(s)."
             )
         else:
             explanation["description"] = (
@@ -51,12 +50,12 @@ async def run_tool(input_data: ExplainFeaturesInput) -> ExplainFeaturesOutput:
         explanations.append(explanation)
 
     # Optionally enrich with Anthropic API
-    try:
+    import contextlib
+
+    with contextlib.suppress(ImportError):
         import anthropic  # noqa: F401
 
         # Enrichment could be added here with anthropic client
         # For now, we rely on static knowledge
-    except ImportError:
-        pass
 
     return ExplainFeaturesOutput(explanations=explanations)

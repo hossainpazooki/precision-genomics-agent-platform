@@ -89,12 +89,8 @@ class AvailabilityFilter:
             Keys: genes_rescued (list), before_count (int), after_count (int),
             before_scores (dict), after_scores (dict).
         """
-        before_available, before_filtered, before_scores = self.filter_genes(
-            original_matrix, threshold
-        )
-        after_available, after_filtered, after_scores = self.filter_genes(
-            imputed_matrix, threshold
-        )
+        before_available, before_filtered, before_scores = self.filter_genes(original_matrix, threshold)
+        after_available, after_filtered, after_scores = self.filter_genes(imputed_matrix, threshold)
 
         # Genes that were below threshold before but above after imputation
         before_set = set(before_available)

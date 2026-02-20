@@ -42,8 +42,10 @@ def mock_filter():
 @pytest.mark.asyncio
 async def test_availability_default(mock_filter, sample_matrix):
     """Test availability check with defaults."""
-    with patch("mcp_server.tools.availability_check.AvailabilityFilter", return_value=mock_filter), \
-         patch("mcp_server.tools.availability_check.OmicsDataLoader") as MockLoader:
+    with (
+        patch("mcp_server.tools.availability_check.AvailabilityFilter", return_value=mock_filter),
+        patch("mcp_server.tools.availability_check.OmicsDataLoader") as MockLoader,
+    ):
         loader = MagicMock()
         loader.load_proteomics.return_value = sample_matrix
         MockLoader.return_value = loader
@@ -61,8 +63,10 @@ async def test_availability_default(mock_filter, sample_matrix):
 @pytest.mark.asyncio
 async def test_availability_scores(mock_filter, sample_matrix):
     """Test that availability scores are returned."""
-    with patch("mcp_server.tools.availability_check.AvailabilityFilter", return_value=mock_filter), \
-         patch("mcp_server.tools.availability_check.OmicsDataLoader") as MockLoader:
+    with (
+        patch("mcp_server.tools.availability_check.AvailabilityFilter", return_value=mock_filter),
+        patch("mcp_server.tools.availability_check.OmicsDataLoader") as MockLoader,
+    ):
         loader = MagicMock()
         loader.load_proteomics.return_value = sample_matrix
         MockLoader.return_value = loader
@@ -79,8 +83,10 @@ async def test_availability_scores(mock_filter, sample_matrix):
 @pytest.mark.asyncio
 async def test_availability_custom_threshold(mock_filter, sample_matrix):
     """Test with a custom threshold."""
-    with patch("mcp_server.tools.availability_check.AvailabilityFilter", return_value=mock_filter), \
-         patch("mcp_server.tools.availability_check.OmicsDataLoader") as MockLoader:
+    with (
+        patch("mcp_server.tools.availability_check.AvailabilityFilter", return_value=mock_filter),
+        patch("mcp_server.tools.availability_check.OmicsDataLoader") as MockLoader,
+    ):
         loader = MagicMock()
         loader.load_proteomics.return_value = sample_matrix
         MockLoader.return_value = loader
@@ -121,8 +127,10 @@ async def test_availability_imputation_impact(mock_filter, sample_matrix):
 @pytest.mark.asyncio
 async def test_availability_serialization(mock_filter, sample_matrix):
     """Test output serialization."""
-    with patch("mcp_server.tools.availability_check.AvailabilityFilter", return_value=mock_filter), \
-         patch("mcp_server.tools.availability_check.OmicsDataLoader") as MockLoader:
+    with (
+        patch("mcp_server.tools.availability_check.AvailabilityFilter", return_value=mock_filter),
+        patch("mcp_server.tools.availability_check.OmicsDataLoader") as MockLoader,
+    ):
         loader = MagicMock()
         loader.load_proteomics.return_value = sample_matrix
         MockLoader.return_value = loader

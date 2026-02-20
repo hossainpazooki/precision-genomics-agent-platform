@@ -12,6 +12,7 @@ from agent_skills.sample_qc import SampleQCSkill
 def _make_tool_caller(responses: dict) -> AsyncMock:
     async def caller(tool_name, **kwargs):
         return responses.get(tool_name, {})
+
     return AsyncMock(side_effect=caller)
 
 
@@ -62,9 +63,12 @@ def tool_responses_warning():
             "missing_data_summary": {},
         },
         "impute_missing_values": {
-            "genes_before": 50, "genes_imputed_mar": 3,
-            "genes_assigned_mnar_zero": 0, "nmf_reconstruction_error": 0.001,
-            "features_recovered": 50, "comparison": {},
+            "genes_before": 50,
+            "genes_imputed_mar": 3,
+            "genes_assigned_mnar_zero": 0,
+            "nmf_reconstruction_error": 0.001,
+            "features_recovered": 50,
+            "comparison": {},
         },
         "run_classification": {
             "ensemble_f1": 0.85,
@@ -111,14 +115,32 @@ async def test_qc_warning(tool_responses_warning):
 async def test_qc_fail():
     """Test QC gives FAIL for many mismatches."""
     responses = {
-        "load_dataset": {"samples": 20, "features": {}, "msi_distribution": {}, "gender_distribution": {}, "missing_data_summary": {}},
-        "impute_missing_values": {"genes_before": 50, "genes_imputed_mar": 0, "genes_assigned_mnar_zero": 0, "nmf_reconstruction_error": 0.0, "features_recovered": 50, "comparison": {}},
-        "run_classification": {"ensemble_f1": 0.5, "per_classifier_f1": {}, "best_strategy": "both", "strategy_comparison": {}, "feature_importances": [], "comparison_to_baseline": {}},
+        "load_dataset": {
+            "samples": 20,
+            "features": {},
+            "msi_distribution": {},
+            "gender_distribution": {},
+            "missing_data_summary": {},
+        },
+        "impute_missing_values": {
+            "genes_before": 50,
+            "genes_imputed_mar": 0,
+            "genes_assigned_mnar_zero": 0,
+            "nmf_reconstruction_error": 0.0,
+            "features_recovered": 50,
+            "comparison": {},
+        },
+        "run_classification": {
+            "ensemble_f1": 0.5,
+            "per_classifier_f1": {},
+            "best_strategy": "both",
+            "strategy_comparison": {},
+            "feature_importances": [],
+            "comparison_to_baseline": {},
+        },
         "match_cross_omics_samples": {
             "distance_matrix_info": {},
-            "identified_mismatches": [
-                {"sample_id": f"S{i:03d}"} for i in range(5)
-            ],
+            "identified_mismatches": [{"sample_id": f"S{i:03d}"} for i in range(5)],
             "iteration_agreement": 0.6,
         },
     }

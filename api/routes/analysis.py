@@ -143,7 +143,7 @@ async def get_analysis_status(workflow_id: str) -> dict:
             "run_id": desc.run_id,
         }
     except Exception:
-        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found") from None
 
 
 @router.get("/{workflow_id}/report")
@@ -170,4 +170,4 @@ async def get_analysis_report(workflow_id: str) -> dict:
         result = await handle.result()
         return {"workflow_id": workflow_id, "report": result}
     except Exception:
-        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found") from None
