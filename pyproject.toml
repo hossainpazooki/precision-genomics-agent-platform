@@ -1,0 +1,82 @@
+[project]
+name = "precision-genomics-agent-platform"
+version = "0.1.0"
+description = "Claude-orchestrated precision genomics platform for multi-omics biomarker discovery"
+requires-python = ">=3.11"
+
+dependencies = [
+    # FastAPI core
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.6",
+    "pydantic>=2.9.1",
+    "pydantic-settings>=2.5.2",
+    "python-dotenv>=1.0.1",
+
+    # Database
+    "sqlmodel>=0.0.22",
+    "psycopg2-binary>=2.9.9",
+
+    # Data processing
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+
+    # HTTP client
+    "httpx>=0.27.2",
+
+    # Cache
+    "redis>=5.1.0",
+
+    # Observability
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+ml = [
+    "scikit-learn>=1.3.0",
+    "scipy>=1.11.0",
+    "statsmodels>=0.14.0",
+    "matplotlib>=3.7.0",
+]
+llm = [
+    "anthropic>=0.34.0",
+]
+temporal = [
+    "temporalio>=1.9.0",
+]
+mcp = [
+    "mcp>=1.0.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.3.0",
+    "httpx>=0.27.2",
+]
+all = [
+    "precision-genomics-agent-platform[ml,llm,temporal,mcp,dev]",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "mcp_server*", "agent_skills*", "workflows*", "api*", "evals*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["core", "mcp_server", "agent_skills", "workflows", "api", "evals"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.",
+]

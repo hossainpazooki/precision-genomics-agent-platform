@@ -1,0 +1,24 @@
+{
+    "pathways": {
+        "immune_infiltration": ["PTPRC", "ITGB2", "LCP1", "NCF2"],
+        "interferon_response": ["GBP1", "GBP4", "IRF1", "IFI35", "WARS"],
+        "antigen_presentation": ["TAP1", "TAPBP", "LAG3"],
+        "mismatch_repair_adjacent": ["CIITA", "TYMP"]
+    },
+    "published_signatures": {
+        "precisionFDA_top5_proteomics": ["S100A14", "ROCK2", "FHDC1", "PGM2", "GAR1"],
+        "precisionFDA_msi_proteomics": [
+            "TAP1", "LCP1", "PTPN6", "NCF2", "GBP4", "WARS", "GBP1",
+            "ITGB2", "IRF1", "IFI35", "TAPBP", "LAG3", "CIITA", "TYMP",
+            "PTPRC", "S100A14", "ROCK2", "FHDC1", "PGM2", "GAR1",
+            "CMBL", "ZC3H13", "SLC35A2", "ACTR1B", "ARMC6", "PRPF38B"
+        ],
+        "precisionFDA_msi_rnaseq": [
+            "EPDR1", "APOL3", "POU5F1B", "MMP7", "S100A14", "LYZ",
+            "RAC2", "WARS", "GBP4", "GBP1", "IRF1", "IFI35",
+            "PTPRC", "LAG3", "TAP1", "TAPBP", "TYMP", "CIITA",
+            "LCP1", "NCF2", "ITGB2", "CMBL", "PTPN6", "PGM2",
+            "ZC3H13", "SLC35A2"
+        ]
+    }
+}

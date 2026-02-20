@@ -28,3 +28,30 @@ target/
 # Environment
 .env
 .env.local
+
+# Data files
+data/raw/*.tsv
+data/raw/*.csv
+data/processed/
+*.pkl
+*.joblib
+
+# ML artifacts
+*.h5
+*.onnx
+models/
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Pytest
+.pytest_cache/
+
+# Ruff
+.ruff_cache/
+
+# Eggs
+*.egg-info/
+*.egg
