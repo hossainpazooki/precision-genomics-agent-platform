@@ -49,18 +49,31 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -e ".[dev,ml]"
+        run: pip install -e ".[dev,ml,gcp,dspy]"
 
       - name: Run tests
-        run: pytest tests/ -x --tb=short
+        run: pytest tests/ -x --tb=short --cov --cov-report=xml
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_precision_genomics
           ENVIRONMENT: test
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
 
   docker-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t precision-genomics-agent-platform .
+      - name: Build API image
+        run: docker build -t precision-genomics-api .
+
+      - name: Build Worker image
+        run: docker build -f Dockerfile.worker -t precision-genomics-worker .
+
+      - name: Build MCP image
+        run: docker build -f Dockerfile.mcp -t precision-genomics-mcp .

@@ -1,0 +1,123 @@
+name: Deploy to GCP
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  REGISTRY: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/precision-genomics
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push API image
+        run: |
+          docker build -t ${{ env.REGISTRY }}/api:${{ github.sha }} -t ${{ env.REGISTRY }}/api:latest .
+          docker push ${{ env.REGISTRY }}/api:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/api:latest
+
+      - name: Build and push Worker image
+        run: |
+          docker build -f Dockerfile.worker -t ${{ env.REGISTRY }}/worker:${{ github.sha }} -t ${{ env.REGISTRY }}/worker:latest .
+          docker push ${{ env.REGISTRY }}/worker:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/worker:latest
+
+      - name: Build and push MCP SSE image
+        run: |
+          docker build -f Dockerfile.mcp -t ${{ env.REGISTRY }}/mcp-sse:${{ github.sha }} -t ${{ env.REGISTRY }}/mcp-sse:latest .
+          docker push ${{ env.REGISTRY }}/mcp-sse:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/mcp-sse:latest
+
+      - name: Deploy API to Cloud Run
+        run: |
+          gcloud run deploy precision-genomics-api \
+            --image ${{ env.REGISTRY }}/api:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --set-env-vars "ENVIRONMENT=production,GCP_PROJECT_ID=${{ env.PROJECT_ID }},USE_SECRET_MANAGER=true,PERSIST_MODELS=true,REQUIRE_AUTH=true" \
+            --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,DATABASE_PASSWORD=DATABASE_PASSWORD:latest" \
+            --vpc-connector precision-genomics-vpc \
+            --min-instances 0 \
+            --max-instances 10 \
+            --memory 4Gi \
+            --cpu 2
+
+      - name: Deploy Worker to Cloud Run
+        run: |
+          gcloud run deploy precision-genomics-worker \
+            --image ${{ env.REGISTRY }}/worker:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --set-env-vars "ENVIRONMENT=production,GCP_PROJECT_ID=${{ env.PROJECT_ID }},USE_SECRET_MANAGER=true" \
+            --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,DATABASE_PASSWORD=DATABASE_PASSWORD:latest" \
+            --vpc-connector precision-genomics-vpc \
+            --min-instances 0 \
+            --max-instances 5 \
+            --memory 8Gi \
+            --cpu 4 \
+            --timeout 900
+
+      - name: Deploy MCP SSE to Cloud Run
+        run: |
+          gcloud run deploy precision-genomics-mcp-sse \
+            --image ${{ env.REGISTRY }}/mcp-sse:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "ENVIRONMENT=production,GCP_PROJECT_ID=${{ env.PROJECT_ID }},USE_SECRET_MANAGER=true" \
+            --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
+            --vpc-connector precision-genomics-vpc \
+            --min-instances 1 \
+            --max-instances 5 \
+            --memory 2Gi \
+            --cpu 1 \
+            --port 8080
+
+      - name: Deploy Biomarker Discovery workflow
+        run: |
+          gcloud workflows deploy precision-genomics-biomarker-discovery \
+            --location ${{ env.REGION }} \
+            --source workflows/definitions/biomarker_discovery.yaml
+
+      - name: Deploy Sample QC workflow
+        run: |
+          gcloud workflows deploy precision-genomics-sample-qc \
+            --location ${{ env.REGION }} \
+            --source workflows/definitions/sample_qc.yaml
+
+      - name: Deploy Prompt Optimization workflow
+        run: |
+          gcloud workflows deploy precision-genomics-prompt-optimization \
+            --location ${{ env.REGION }} \
+            --source workflows/definitions/prompt_optimization.yaml
