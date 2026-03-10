@@ -1,244 +1,353 @@
 # Precision Genomics Agent Platform
 
-Claude-orchestrated precision genomics platform for multi-omics biomarker discovery, built on the precisionFDA MSI classification challenge. Combines statistical ML pipelines with LLM-driven agent skills, MCP tool integration, and Temporal workflow orchestration.
+An AI-orchestrated platform for multi-omics MSI classification, built on the [precisionFDA NCI-CPTAC Multi-omics Mislabeling Challenge](https://www.nature.com/articles/s41591-018-0180-x).
 
-## Architecture
+## The Challenge
 
+As precision medicine moves beyond genomics to integrate proteomics, transcriptomics, and clinical data, the integrity of multi-omics datasets becomes critical. Sample mislabeling — accidental swapping of patient samples or data — is a [known obstacle in translational research](https://www.nature.com/articles/s41591-018-0180-x) that can lead to patients receiving the wrong treatment with severe, irreversible consequences.
+
+The NCI-CPTAC and FDA launched the precisionFDA Multi-omics Enabled Sample Mislabeling Correction Challenge ([Boja et al., *Nature Medicine* 2018](https://www.nature.com/articles/s41591-018-0180-x)) to address this problem. The challenge asked teams to develop computational algorithms that detect and correct mislabeled samples across clinical, proteomics, and RNA-Seq data — ensuring that **the right data is attributed to the right patient**.
+
+The challenge was structured in two subchallenges: (1) detect mislabeled samples using clinical + proteomics data, then (2) correct mislabels using all three data types (clinical, proteomics, RNA-Seq). This platform implements solutions for both, while also classifying MSI status — a biomarker for immunotherapy response — from the same multi-omics data.
+
+The dataset: 80 tumor samples with paired proteomics (~7K genes) and RNA-Seq (~15K genes) measurements plus clinical metadata including MSI status and gender. The catch: the data contains intentionally introduced mislabels, missing values, and cross-omics discordance that must be resolved before any downstream analysis.
+
+```mermaid
+flowchart LR
+    A[80 Tumor Samples] --> B["Proteomics\n~7K genes"]
+    A --> C["RNA-Seq\n~15K genes"]
+    A --> D["Clinical\nMSI + Gender"]
+    B & C & D --> E{Known Issues}
+    E --> F["Mislabeled\nSamples"]
+    E --> G["Missing Data\n10-15%"]
+    E --> H["Cross-Omics\nDiscordance"]
 ```
-precision-genomics-agent-platform/
-|
-|-- core/             Core ML engine (imputation, feature selection, classification, cross-omics matching)
-|-- mcp_server/       Model Context Protocol server exposing genomics tools to Claude
-|-- agent_skills/     High-level agent skills (biomarker discovery, sample QC)
-|-- workflows/        Temporal durable workflows for long-running analysis pipelines
-|-- api/              FastAPI REST service with analysis and biomarker endpoints
-|-- evals/            Evaluation framework (biological validity, reproducibility, hallucination, benchmarks)
-|-- prompts/          System prompts for Claude agent orchestration
-|-- data/             Raw and processed data directory
-|-- tests/            Comprehensive test suite
+
+## Methodology
+
+The platform implements a four-stage pipeline inspired by the COSMO (Cross-Omics Sample Matching for Omics) approach.
+
+```mermaid
+flowchart TD
+    S1["Stage 1: Impute\nNMF rank selection\nMNAR Y-chr handling"]
+    S2["Stage 2: Match\nSpearman correlation\nHungarian algorithm"]
+    S3["Stage 3: Predict\n4-method feature selection\nEnsemble classifier + meta-learner"]
+    S4["Stage 4: Validate\nDual-path concordance\nHIGH / REVIEW / PASS"]
+    S1 --> S2 --> S3 --> S4
 ```
 
-### Core ML Engine (`core/`)
+**Stage 1 — Imputation.** Missing values are classified as MNAR (missing-not-at-random, below detection limit) or MAR (missing-at-random, batch dropout). MNAR values use minimum-value imputation; MAR values use NMF-based matrix completion with automatic rank selection. Y-chromosome genes receive gender-stratified handling.
 
-Statistical and ML modules for multi-omics analysis:
+**Stage 2 — Cross-Omics Matching.** Proteomics and RNA-Seq samples are matched using Spearman correlation across shared genes, producing a distance matrix solved by the Hungarian algorithm for optimal assignment. Mismatched samples are flagged.
 
-- **Imputation** -- MNAR-aware imputation with gender-stratified Y-chromosome handling, using KNN, iterative, and minimum-value strategies
-- **Availability Filter** -- Feature filtering by sample availability threshold with missingness-not-at-random detection
-- **Feature Selection** -- Multi-strategy selector combining random forest importance, mutual information, and stability selection with consensus scoring
-- **Classifier** -- Ensemble mismatch classifier using logistic regression, random forest, and gradient boosting with cross-validated predictions
-- **Cross-Omics Matcher** -- Proteomics/RNA-Seq concordance analysis using Spearman correlation and distance matrices
-- **Pipeline** -- COSMO-inspired orchestration pipeline coordinating all stages from raw data to final biomarker panels
+**Stage 3 — Feature Selection & Classification.** Four independent feature selection methods vote on the final biomarker panel. An ensemble classifier (logistic regression + random forest + gradient boosting) with a meta-learner produces MSI predictions.
 
-### MCP Server (`mcp_server/`)
+**Stage 4 — Dual Validation.** Proteomics-only and RNA-Seq-only predictions are compared. Concordant predictions receive HIGH confidence; discordant ones are flagged for REVIEW.
 
-Model Context Protocol server exposing 8 genomics tools for Claude integration:
+### MSI Pathway Biomarkers
 
-| Tool | Description |
-|------|-------------|
-| `data_loader` | Load and validate multi-omics TSV datasets |
-| `impute_missing` | Run MNAR-aware imputation on expression matrices |
-| `availability_check` | Filter features by availability threshold |
-| `biomarker_selector` | Multi-strategy feature selection with consensus |
-| `classifier` | Train and evaluate ensemble mismatch classifiers |
-| `match_cross_omics` | Cross-omics concordance analysis |
-| `evaluator` | Run evaluation suite on agent outputs |
-| `explainer` | Generate biological interpretations of results |
+| Pathway | Genes | Biological Basis |
+|---------|-------|-----------------|
+| Immune Infiltration | PTPRC, ITGB2, LCP1, NCF2 | Leukocyte markers elevated in MSI-H |
+| Interferon Response | GBP1, GBP4, IRF1, IFI35, WARS | IFN-gamma signaling via neoantigens |
+| Antigen Presentation | TAP1, TAPBP, LAG3 | MHC-I pathway in MSI-H tumors |
+| Mismatch Repair Adjacent | CIITA, TYMP | Co-regulated with MMR loci |
 
-### Agent Skills (`agent_skills/`)
+### Feature Selection Methods
 
-High-level skills that compose MCP tools into multi-step analyses:
+| Method | Algorithm | Selection Criterion |
+|--------|-----------|-------------------|
+| ANOVA | One-way F-test | Bonferroni + BH correction |
+| LASSO | LogisticRegressionCV (L1) | Non-zero coefficients |
+| NSC | Soft-thresholded centroids | Cross-validated threshold |
+| Random Forest | GridSearchCV, 500 trees | Gini importance ranking |
 
-- **Biomarker Discovery** -- End-to-end biomarker panel identification from raw data
-- **Sample QC** -- Sample mismatch detection and quality control
+## System Architecture
 
-### Temporal Workflows (`workflows/`)
+```mermaid
+flowchart TB
+    subgraph Agent["Agent Layer"]
+        Claude["Claude (Sonnet/Opus)"]
+    end
+    subgraph Skills["Skill Layer"]
+        BD[Biomarker Discovery]
+        QC[Sample QC]
+        CO[Cross-Omics Integration]
+        LG[Literature Grounding]
+    end
+    subgraph MCP["MCP Tool Layer (9 tools)"]
+        T1[load_dataset]
+        T2[impute_missing]
+        T3[select_biomarkers]
+        T4[run_classification]
+        T5[match_cross_omics]
+        T6["... +4 more"]
+    end
+    subgraph Core["Core ML Engine"]
+        IMP[Imputation]
+        FS[Feature Selection]
+        CLF[Classifier]
+        COM[Cross-Omics Matcher]
+    end
+    subgraph Infra["Infrastructure"]
+        WF[GCP Workflows]
+        API[FastAPI]
+        GCP[Vertex AI / GCS]
+    end
+    Claude --> Skills
+    Skills --> MCP
+    MCP --> Core
+    Core --> Infra
+```
 
-Durable, fault-tolerant workflow orchestration:
+### MCP Tools
 
-- **Biomarker Discovery Workflow** -- Long-running multi-omics analysis with checkpointing
-- **Sample QC Workflow** -- Automated sample quality assessment pipeline
-- **Activities** -- Individual workflow steps (data loading, imputation, feature selection, classification, cross-omics matching, evaluation)
+| Tool | Purpose |
+|------|---------|
+| `load_dataset` | Load multi-omics TSV data with summary stats |
+| `impute_missing` | MNAR/MAR classification + NMF imputation |
+| `check_availability` | Gene availability scoring and filtering |
+| `select_biomarkers` | 4-method ensemble feature selection |
+| `run_classification` | Ensemble classifier training + CV |
+| `match_cross_omics` | Distance matrix + Hungarian matching |
+| `evaluate_model` | F1, precision, recall, ROC-AUC |
+| `explain_features` | Biological pathway explanations (Claude) |
+| `explain_features_local` | SLM-based explanations (BioMistral) |
 
-### FastAPI Service (`api/`)
+### Evaluation Framework
 
-REST API for triggering and monitoring analyses:
+| Eval | Metric | Threshold |
+|------|--------|-----------|
+| Biological Validity | MSI pathway coverage | >= 60% |
+| Hallucination Detection | PubMed citation verification | >= 90% |
+| Reproducibility | Pairwise Jaccard over 10 runs | >= 85% |
+| Benchmark Comparison | Overlap with published signatures | Any |
+| SLM Eval | Combined validity + hallucination for SLM | Pass both |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/analyses` | Start a new analysis run |
-| `GET` | `/api/v1/analyses/{id}` | Get analysis status and results |
-| `GET` | `/api/v1/analyses` | List analysis runs with filtering |
-| `POST` | `/api/v1/biomarkers/panels` | Create a biomarker panel |
-| `GET` | `/api/v1/biomarkers/panels/{id}` | Get panel details |
-| `GET` | `/api/v1/biomarkers/panels` | List panels with filtering |
+## Advanced ML Integration
 
-Includes audit logging middleware and optional API key authentication.
+Three enhancement layers extend the base pipeline for production use.
 
-### Evaluation Framework (`evals/`)
+```mermaid
+flowchart LR
+    subgraph SLM["Layer 1: SLM Fine-Tuning"]
+        BM[BioMistral-7B] --> QL["QLoRA 4-bit\nr=16, alpha=32"]
+        QL --> AD["Adapter\n~13M params"]
+    end
+    subgraph DSPy["Layer 2: DSPy Optimization"]
+        MOD[4 Modules] --> MET[Eval Metrics]
+        MET --> COMP["MIPROv2\nCompiler"]
+    end
+    subgraph GPU["Layer 3: GPU Training"]
+        ENC["Expression Encoder\nTransformer + CLS"]
+        DDP[DDP on 2xA100]
+        CU[cuML Classifier]
+    end
+```
 
-Four evaluators for validating agent-selected biomarker panels:
+**Layer 1 — SLM Fine-Tuning.** BioMistral-7B is fine-tuned with QLoRA (4-bit quantization, rank-16 adapters) on distilled biomarker explanations, producing a local model that replaces Claude API calls for feature interpretation at inference time.
 
-| Evaluator | Metric | Default Threshold |
-|-----------|--------|-------------------|
-| **Biological Validity** | Fraction of known MSI pathways covered | 60% |
-| **Reproducibility** | Average pairwise Jaccard similarity across runs | 85% |
-| **Hallucination Detection** | Fraction of PubMed citations that are verifiable | 90% |
-| **Benchmark Comparison** | Jaccard similarity against published signatures | Any overlap |
+**Layer 2 — DSPy Optimization.** Four DSPy modules (biomarker discovery, feature interpretation, sample QC, regulatory report) are compiled with MIPROv2 to optimize prompts against the evaluation metrics automatically.
+
+**Layer 3 — GPU Training.** A transformer-based expression encoder learns gene expression embeddings via contrastive learning on 2xA100 GPUs with DDP. cuML accelerates downstream classification.
+
+### Training Data Sources
+
+| Source | Count | Method |
+|--------|-------|--------|
+| Ground Truth | ~50 | Platform constants (KNOWN_MSI_PATHWAY_MARKERS) |
+| Distilled | ~500 | Claude-generated, hallucination-filtered |
+| Negative | ~150 | Housekeeping genes, no pathway association |
+
+## Synthetic Data Generator
+
+The platform includes a configurable synthetic data generator (`core/synthetic.py`) that produces realistic multi-omics datasets with controllable signal layers for testing and benchmarking.
+
+```mermaid
+flowchart TD
+    BASE[Log-normal Base Expression] --> L1["Layer 1: MSI Signal\nPathway fold-changes 1.4-2.2x"]
+    BASE --> L2["Layer 2: Gender Signal\nY-chr high/zero"]
+    L1 & L2 --> L3["Layer 3: Cross-Omics\nShared latent factors"]
+    L3 --> L4["Layer 4: Mislabel Injection\nProteomics/RNA-Seq/Clinical swaps"]
+    L4 --> L5["Layer 5: Missingness\nMNAR + MAR batch dropout"]
+```
+
+### Presets
+
+| Preset | Samples | Pro Genes | RNA Genes | Use Case |
+|--------|---------|-----------|-----------|----------|
+| `unit` | 20 | 100 | 150 | Unit tests (<1s) |
+| `integration` | 80 | 5,000 | 15,000 | Integration tests |
+| `benchmark` | 500 | 7,000 | 15,000 | Performance benchmarks |
 
 ## Quick Start
 
 ### Prerequisites
 
 - Python 3.11+
-- Docker and Docker Compose (for PostgreSQL/TimescaleDB, Redis, Temporal)
-
-### Infrastructure
-
-```bash
-docker-compose up -d
-```
-
-This starts:
-- **TimescaleDB** (PostgreSQL 16) on port 5432
-- **Redis** on port 6379
-- **Temporal** on port 7233
-- **Temporal UI** on port 8233
+- Docker and Docker Compose (for PostgreSQL, Redis)
 
 ### Install
 
 ```bash
-# All dependencies (ML, LLM, Temporal, MCP, dev)
+# Clone and install
+git clone https://github.com/your-org/precision-genomics-agent-platform.git
+cd precision-genomics-agent-platform
+
+# All dependencies (ML, LLM, MCP, GCP, dev)
 pip install -e ".[all]"
 
 # Or minimal + specific extras
 pip install -e ".[ml,dev]"
 ```
 
-### Run the API
+### Start Infrastructure
 
 ```bash
+docker-compose up -d
+# Starts: PostgreSQL 16 (5432), Redis (6379), Activity Worker (8081)
+```
+
+### Run Services
+
+```bash
+# API server
 uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
-```
 
-### Run the Temporal Worker
+# Activity worker (workflow step executor)
+uvicorn workflows.activity_service:app --host 0.0.0.0 --port 8081
 
-```bash
-python -m workflows.worker
-```
-
-## Development
-
-### Install Dev Dependencies
-
-```bash
-pip install -e ".[dev]"
+# MCP server (SSE transport)
+python -m mcp_server.server --transport sse --port 8080
 ```
 
 ### Run Tests
 
 ```bash
-# All tests
-pytest
-
-# With coverage
-pytest --cov
-
-# Specific test module
-pytest tests/test_evals/
-
-# Verbose
-pytest -v tests/test_evals/test_biological_validity.py
-```
-
-### Lint and Format
-
-```bash
-# Check
-ruff check .
-ruff format --check .
-
-# Fix
-ruff check --fix .
-ruff format .
+pytest                    # All tests
+pytest --cov              # With coverage
+pytest tests/test_evals/  # Specific module
 ```
 
 ## Project Structure
 
 ```
 precision-genomics-agent-platform/
-├── api/
-│   ├── __init__.py
-│   ├── middleware/
-│   │   ├── __init__.py
-│   │   ├── audit.py
-│   │   └── auth.py
-│   └── routes/
-│       ├── __init__.py
-│       ├── analysis.py
-│       └── biomarkers.py
-├── agent_skills/
-│   ├── __init__.py
-│   ├── biomarker_discovery.py
-│   └── sample_qc.py
-├── core/
-│   ├── __init__.py
-│   ├── availability.py
-│   ├── classifier.py
-│   ├── config.py
-│   ├── constants.py
-│   ├── cross_omics_matcher.py
-│   ├── feature_selection.py
-│   ├── imputation.py
-│   ├── models.py
-│   └── pipeline.py
-├── evals/
-│   ├── __init__.py
-│   ├── benchmark_comparison.py
-│   ├── biological_validity.py
-│   ├── hallucination_detection.py
-│   ├── reproducibility.py
-│   └── fixtures/
-│       └── known_msi_signatures.json
-├── mcp_server/
-│   ├── __init__.py
-│   ├── schemas/
-│   ├── server.py
-│   └── tools/
-│       ├── __init__.py
-│       ├── availability_check.py
-│       ├── biomarker_selector.py
-│       ├── classifier.py
-│       ├── data_loader.py
-│       ├── evaluator.py
-│       ├── explainer.py
-│       ├── impute_missing.py
-│       └── match_cross_omics.py
-├── prompts/
-├── workflows/
-│   ├── __init__.py
-│   ├── activities/
-│   ├── biomarker_discovery.py
-│   ├── config.py
-│   ├── sample_qc.py
-│   ├── schemas.py
-│   └── worker.py
-├── tests/
-│   ├── conftest.py
-│   └── test_evals/
-│       ├── __init__.py
-│       ├── test_benchmark_comparison.py
-│       ├── test_biological_validity.py
-│       ├── test_hallucination_detection.py
-│       └── test_reproducibility.py
-├── data/
-├── docs/
-├── docker-compose.yml
-├── Dockerfile
-├── Dockerfile.worker
-├── pyproject.toml
-├── ruff.toml
-└── README.md
+├── agent_skills/                  # High-level agent skills
+│   ├── biomarker_discovery.py     #   End-to-end biomarker panel identification
+│   ├── cross_omics_integration.py #   Cross-omics concordance analysis
+│   ├── literature_grounding.py    #   PubMed citation verification
+│   └── sample_qc.py              #   Sample mismatch detection
+├── api/                           # FastAPI REST service
+│   ├── main.py                    #   App entrypoint
+│   ├── middleware/                #   Audit logging, auth
+│   └── routes/                    #   Analysis, biomarker, workflow endpoints
+├── core/                          # Core ML engine
+│   ├── availability.py            #   Feature availability filtering
+│   ├── classifier.py              #   Ensemble MSI classifier
+│   ├── config.py                  #   Environment configuration
+│   ├── constants.py               #   Known MSI markers, pathways
+│   ├── cross_omics_matcher.py     #   Spearman + Hungarian matching
+│   ├── data_loader.py             #   Multi-omics TSV loader
+│   ├── database.py                #   PostgreSQL connection
+│   ├── experiment_tracker.py      #   Vertex AI experiment tracking
+│   ├── feature_selection.py       #   4-method consensus selection
+│   ├── feature_store.py           #   Feature caching layer
+│   ├── gpu_classifier.py          #   cuML GPU-accelerated classifier
+│   ├── imputation.py              #   MNAR-aware imputation
+│   ├── model_registry.py          #   Vertex AI model registry
+│   ├── models.py                  #   Pydantic data models
+│   ├── pipeline.py                #   COSMO-style orchestration
+│   ├── secrets.py                 #   Secret Manager integration
+│   ├── sharded_distance.py        #   Distributed distance matrices
+│   ├── storage.py                 #   GCS storage abstraction
+│   ├── synthetic.py               #   Synthetic data generator
+│   └── vertex_training.py         #   Vertex AI custom training
+├── dspy_modules/                  # DSPy prompt optimization
+│   ├── biomarker_discovery.py     #   Biomarker discovery module
+│   ├── compile.py                 #   MIPROv2 compiler
+│   ├── feature_interpret.py       #   Feature interpretation module
+│   ├── metrics.py                 #   Eval metrics for optimization
+│   ├── regulatory_report.py       #   Regulatory report module
+│   └── sample_qc.py              #   Sample QC module
+├── evals/                         # Evaluation framework
+│   ├── benchmark_comparison.py    #   Published signature comparison
+│   ├── biological_validity.py     #   MSI pathway coverage
+│   ├── hallucination_detection.py #   Citation verification
+│   ├── reproducibility.py         #   Run-to-run consistency
+│   ├── slm_eval.py                #   SLM-specific evaluation
+│   └── fixtures/                  #   Known MSI signatures
+├── mcp_server/                    # Model Context Protocol server
+│   ├── server.py                  #   MCP server entrypoint
+│   ├── schemas/                   #   Request/response schemas
+│   └── tools/                     #   9 genomics tools for Claude
+├── prompts/                       # System prompts for agent orchestration
+├── scripts/                       # Training entrypoints
+│   ├── compile_dspy.py            #   DSPy compilation script
+│   ├── encoder_train_entrypoint.py#   Expression encoder training
+│   ├── slm_train_entrypoint.py    #   SLM fine-tuning script
+│   └── vertex_train_entrypoint.py #   Vertex AI training job
+├── terraform/                     # GCP infrastructure as code
+│   ├── main.tf                    #   Root module
+│   ├── variables.tf / outputs.tf  #   Config and outputs
+│   └── modules/                   #   cloud_run, cloud_sql, gcs, vertex_ai, ...
+├── training/                      # ML training modules
+│   ├── data_builder.py            #   Training data generation
+│   ├── expression_encoder.py      #   Transformer gene encoder
+│   ├── finetune_slm.py            #   BioMistral QLoRA fine-tuning
+│   ├── explainer.py               #   Distillation data generation
+│   ├── gpu_configs.py             #   GPU training configurations
+│   └── train_encoder_ddp.py       #   DDP distributed training
+├── workflows/                     # GCP Workflows orchestration
+│   ├── activity_service.py        #   FastAPI activity worker service
+│   ├── local_runner.py            #   Local workflow runner (dev)
+│   ├── progress.py                #   Execution progress tracking
+│   ├── definitions/               #   GCP Workflow YAML definitions
+│   └── activities/                #   Workflow activity implementations
+├── tests/                         # Test suite
+├── data/                          #   raw/ and processed/
+├── docs/                          # Extended documentation
+├── docker-compose.yml             # Local infrastructure
+├── Dockerfile                     # API container
+├── Dockerfile.mcp                 # MCP server container
+├── Dockerfile.worker              # Activity worker container
+├── Dockerfile.trainer             # GPU training container
+└── pyproject.toml                 # Dependencies and project config
 ```
+
+## Deployment
+
+```mermaid
+flowchart TB
+    GH[GitHub Actions] --> CR1["Cloud Run\nAPI"]
+    GH --> CR2["Cloud Run\nMCP SSE"]
+    GH --> CR3["Cloud Run\nActivity Worker"]
+    CR1 & CR2 & CR3 --> SQL[("Cloud SQL\nPostgreSQL")]
+    CR1 & CR2 --> RED[("Memorystore\nRedis")]
+    CR1 --> WF["GCP Workflows\nOrchestration"]
+    WF --> CR3
+    CR1 --> VAI["Vertex AI\nTraining + Registry"]
+    VAI --> GCS[("GCS\nData + Models")]
+```
+
+All GCP features are optional and gated by environment variables. Local development works without any GCP configuration.
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init && terraform apply
+```
+
+See [docs/GCP_DEPLOYMENT.md](docs/GCP_DEPLOYMENT.md) for full instructions.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md) — system design and component interactions
+- [Scientific Methodology](docs/SCIENTIFIC_METHODOLOGY.md) — statistical methods and biological rationale
+- [Anthropic Alignment](docs/ANTHROPIC_ALIGNMENT.md) — responsible AI practices and eval design
+- [GCP Deployment](docs/GCP_DEPLOYMENT.md) — Terraform infrastructure and CI/CD
+- [Advanced ML Integration](docs/ADVANCED_ML_INTEGRATION.md) — SLM, DSPy, and GPU training details
+- [Synthetic Data Strategy](docs/SYNTHETIC_DATA_STRATEGY.md) — data generation methodology
 
 ## License
 

@@ -21,7 +21,10 @@
 | Agent skill designs | ✅ 4 skills with prompt templates |
 | Temporal workflow patterns | ✅ 3 workflows with activity decomposition |
 | Evaluation framework | ✅ 4 evals with thresholds |
-| Code implementation | 🔲 Not started — awaiting review approval |
+| Code implementation | ✅ Complete — core ML engine, MCP servers, agent skills, evals, infrastructure |
+| GCP deployment | ✅ Complete — Terraform, Cloud Run, Vertex AI, CI/CD, SSE transport |
+| Documentation suite | ✅ 4 of 4 docs complete (ARCHITECTURE, SCIENTIFIC_METHODOLOGY, ANTHROPIC_ALIGNMENT, GCP_DEPLOYMENT) |
+| Advanced ML integration | ✅ Complete — SLM fine-tuning (`training/`), DSPy prompt optimization (`dspy_modules/`), GPU-accelerated training, synthetic data generator |
 
 **Project knowledge available:** precisionFDA notebooks (Import, Proteomics, RNA-Seq, Availability, Final Results, Visualizations), raw challenge data (train/test TSVs for clinical, proteomics, RNA-Seq), institutional-defi-platform-api monorepo with existing Temporal/FastAPI/Kubernetes infrastructure.
 
@@ -179,8 +182,8 @@ precision-genomics-agent-platform/
 │   ├── server.py                    # MCP server entrypoint
 │   ├── tools/
 │   │   ├── __init__.py
-│   │   ├── data_loader.py           # load_omics_dataset tool
-│   │   ├── availability_check.py    # check_feature_availability tool
+│   │   ├── data_loader.py           # load_dataset tool
+│   │   ├── availability_check.py    # check_availability tool
 │   │   ├── biomarker_selector.py    # select_biomarkers tool
 │   │   ├── classifier.py            # run_classification tool
 │   │   ├── evaluator.py             # evaluate_model tool
@@ -407,6 +410,8 @@ class FeaturePanel(BaseModel):
     method_agreement_matrix: dict    # Overlap statistics between methods
 ```
 
+> **Current Implementation Note:** The actual code (`core/feature_selection.py`) uses a `@dataclass` with fields `name`, `score`, `method`, `p_value`, and `rank` rather than the Pydantic `BaseModel` shown above. The `selected_by: list[str]` multi-method tracking is handled at the `FeaturePanel` level instead.
+
 #### Stage 3: Ensemble Classification (`core/classifier.py`)
 
 **Sentieon's key insight:** For binary clinical labels (gender + MSI), there are two valid strategies — predict each phenotype independently then merge, or treat all 4 combinations (Male-MSI-High, Male-MSI-Low, Female-MSI-High, Female-MSI-Low) as a 4-class problem. The winning solution ran both and integrated the results.
@@ -427,6 +432,7 @@ class EnsembleMismatchClassifier:
     Integration strategies:
       - Separate: Predict gender and MSI independently, merge predictions
       - Joint: Predict 4-class combined phenotype directly
+        > **Implementation Note:** The joint strategy computation (`y_gender * 10 + y_msi`) exists in code but is not yet connected to classifier training — only the "separate" strategy is functional.
       - Meta: Stack predictions from all classifiers as features for a
         final meta-learner (logistic regression)
     """
@@ -541,7 +547,7 @@ Each stage is implemented as both a standalone Python module (for direct use) an
 
 **Tool Specifications:**
 
-#### `load_omics_dataset`
+#### `load_dataset`
 ```
 Input:  { dataset: "train" | "test", modalities: ["clinical", "proteomics", "rnaseq"] }
 Output: { samples: int, features: { clinical: int, proteomics: int, rnaseq: int },
@@ -550,7 +556,7 @@ Output: { samples: int, features: { clinical: int, proteomics: int, rnaseq: int 
                                   genes_gt20pct_missing: int } }
 ```
 
-#### `impute_missing_data` *(NEW — Sentieon method)*
+#### `impute_missing` *(NEW — Sentieon method)*
 ```
 Input:  { dataset: "train" | "test", modality: "proteomics" | "rnaseq",
           strategy: "nmf" | "median" | "knn", classify_missingness: true | false }
@@ -559,7 +565,7 @@ Output: { genes_before_imputation: int, genes_imputed_mar: int, genes_assigned_m
           comparison: { before_available_90pct: int, after_available_90pct: int } }
 ```
 
-#### `check_feature_availability`
+#### `check_availability`
 ```
 Input:  { genes: [str], threshold: float (default 0.9), dataset: "train" | "test",
           use_imputed: bool (default true) }
@@ -632,7 +638,7 @@ Output: { explanations: [{ gene: str, biological_function: str, relevance_to_tar
 - `explain_features` uses Anthropic API to generate grounded biological explanations with PubMed citation retrieval
 
 **Acceptance Criteria:**
-- MCP Inspector connects and lists all 6 tools
+- MCP Inspector connects and lists all 8 tools
 - Claude Desktop can invoke tools and receive structured results
 - Tool execution times: data loading <2s, classification <30s, explanation <10s
 - All tools return valid JSON matching their output schemas
@@ -646,9 +652,9 @@ Output: { explanations: [{ gene: str, biological_function: str, relevance_to_tar
 **Objective:** A composable skill that takes a classification target and multi-omics data, then systematically identifies, validates, and interprets a biomarker panel.
 
 **Workflow:**
-1. Load dataset via `load_omics_dataset` — note missing data summary
-2. Impute missing data via `impute_missing_data` (MAR/MNAR-aware NMF)
-3. Check feature availability via `check_feature_availability` (on imputed data)
+1. Load dataset via `load_dataset` — note missing data summary
+2. Impute missing data via `impute_missing` (MAR/MNAR-aware NMF)
+3. Check feature availability via `check_availability` (on imputed data)
 4. Select biomarkers via `select_biomarkers` with `methods="all"` — run ANOVA, LASSO, NSC, and RF independently for each modality, compare method agreement
 5. Run ensemble classification via `run_classification` with `classifiers="ensemble"` — Label-Weighted k-NN + LASSO + NSC + RF with meta-learner
 6. Run cross-omics matching via `match_cross_omics` — validate sample pairing independently of classification
@@ -664,9 +670,9 @@ identify biomarkers predictive of {target} using {modalities} data, following
 the championship methodology validated at RECOMB 2019.
 
 Available tools:
-- load_omics_dataset: Load and summarize the dataset, including missing data profile
-- impute_missing_data: Fill missing values using MAR/MNAR-aware NMF imputation
-- check_feature_availability: Verify genes have sufficient data (post-imputation)
+- load_dataset: Load and summarize the dataset, including missing data profile
+- impute_missing: Fill missing values using MAR/MNAR-aware NMF imputation
+- check_availability: Verify genes have sufficient data (post-imputation)
 - select_biomarkers: Multi-strategy feature selection (ANOVA + LASSO + NSC + RF)
 - run_classification: Ensemble classification with Label-Weighted k-NN integration
 - match_cross_omics: Cross-omics distance matrix matching (proteome ↔ transcriptome)
@@ -943,6 +949,8 @@ Each feature selection method has its own hyperparameters, tuned independently b
 
 Total: 6 × 2 × 7 × 4 = 336 parameter combinations × 10 folds × 500 trees. With 80 samples, each fold trains fast.
 
+> **Implementation Note:** The current code uses a reduced 6-combination grid (3 `max_depth` × 2 `min_samples_leaf`) suitable for the small training set (n=80). The full 336-combination grid is documented for scaling to larger cohorts.
+
 **Ensemble integration** (`union_weighted`) is parameter-free — it ranks genes by how many methods selected them, breaking ties by average rank across methods.
 
 ### Stage 3: Cross-Omics Distance Matrix Matching
@@ -1100,10 +1108,10 @@ Production-tested prompts for life sciences tasks, ready for the Anthropic promp
 A Claude Desktop session demonstrating the championship-grade pipeline:
 
 1. **"Load the precisionFDA training data and give me an overview"**  
-   → Claude calls `load_omics_dataset`, reports 80 samples, 4118 proteins, 17447 genes, MSI distribution, **and that >30% of genes have >20% missing proteomic data**
+   → Claude calls `load_dataset`, reports 80 samples, 4118 proteins, 17447 genes, MSI distribution, **and that >30% of genes have >20% missing proteomic data**
 
 2. **"That's a lot of missing data. Impute it using the championship method"**  
-   → Claude calls `impute_missing_data` with MAR/MNAR classification. Reports: Y-chromosome genes in female samples assigned zero (MNAR), remaining gaps filled via NMF. **Features recovered: X genes that would have been lost to the 90% availability filter**
+   → Claude calls `impute_missing` with MAR/MNAR classification. Reports: Y-chromosome genes in female samples assigned zero (MNAR), remaining gaps filled via NMF. **Features recovered: X genes that would have been lost to the 90% availability filter**
 
 3. **"Now run all four feature selection methods on the proteomics data for MSI prediction"**  
    → Claude calls `select_biomarkers(methods="all", integration="union_weighted")`. Reports method agreement matrix: ANOVA, LASSO, NSC, and RF each select overlapping but distinct gene sets. **Highlights genes selected by 3+ methods as high-confidence MSI markers** (e.g., TAP1, GBP1, PTPRC appear across methods)
@@ -1131,6 +1139,30 @@ A 1500-word technical narrative for the Anthropic application "Why Anthropic?" f
 - **The hard parts:** Heterogeneous data formats, scientific auditability requirements, the trust gap between "the model says it's mislabeled" and "I believe it" (solved via dual-method concordance and visual distance matrix proof), hallucination risk in biological interpretations.
 - **What I learned:** The gap between a competent single-method approach and a championship-caliber system mirrors the gap between a notebook prototype and production AI in life sciences. Both require methodological rigor, not just engineering polish.
 - **Why Anthropic:** Anthropic wants to make Claude the go-to tool for life sciences R&D. I've built exactly the infrastructure — MCP servers, agent skills, Temporal workflows, scientific evaluations — that the Beneficial Deployments team is creating with HHMI and Allen Institute. And I've done it on a real genomics challenge where ground truth exists and performance is measurable.
+
+---
+
+## Implementation Status
+
+> **As of March 2026:** Phases 1–4 are implemented with the following deviations from this plan:
+>
+> **Implemented:**
+> - Core ML engine (imputation, feature selection, classifier, cross-omics matcher, pipeline)
+> - MCP server with 8 tools (stdio transport)
+> - 4 agent skills (biomarker discovery, sample QC, cross-omics integration, literature grounding)
+> - Evaluation framework (biological validity, reproducibility, hallucination detection, benchmark)
+> - Test suite (260+ tests)
+> - CI pipeline (GitHub Actions)
+> - 3 documentation files: ARCHITECTURE.md, SCIENTIFIC_METHODOLOGY.md, ANTHROPIC_ALIGNMENT.md
+>
+> **Not yet implemented:**
+> - `security-scan.yml` CI workflow
+> - `data/` and `notebooks/` directories (raw precisionFDA data not committed)
+> - `COSMOPipelineWorkflow` as standalone Temporal workflow (exists as `core/pipeline.py` class)
+> - 1 documentation file: DEPLOYMENT.md
+> - Literature grounding skill (4th agent skill — since implemented)
+> - FastAPI service layer
+> - SSE transport for MCP server
 
 ---
 
