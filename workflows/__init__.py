@@ -1,4 +1,4 @@
-"""Temporal workflow definitions for genomics pipelines."""
+"""Workflow definitions and orchestration for genomics pipelines."""
 
 from workflows.config import WorkflowConfig
 from workflows.schemas import (

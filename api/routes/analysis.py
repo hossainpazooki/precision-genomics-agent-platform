@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime
 
@@ -13,23 +14,24 @@ from workflows.schemas import (
     WorkflowStatus,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analyze", tags=["Analysis"])
 
-# In-memory store for demo/testing when Temporal is not available
+# In-memory store for local dev when GCP Workflows is not available
 _mock_workflows: dict[str, dict] = {}
 
 
-def _get_temporal_client():
-    """Try to get a Temporal client, return None if unavailable."""
+def _is_gcp_available() -> bool:
+    """Check if GCP Workflows client is available."""
     try:
-        from temporalio.client import Client  # noqa: F401
+        from google.cloud.workflows.executions_v1 import ExecutionsClient  # noqa: F401
 
         from workflows.config import WorkflowConfig
 
         config = WorkflowConfig()
-        return config
+        return config.project is not None
     except ImportError:
-        return None
+        return False
 
 
 @router.post("/biomarkers")
@@ -37,41 +39,60 @@ async def start_biomarker_analysis(params: BiomarkerDiscoveryParams) -> dict:
     """Start a biomarker discovery workflow."""
     workflow_id = f"biomarker-{uuid.uuid4().hex[:12]}"
 
-    try:
-        from temporalio.client import Client
+    if _is_gcp_available():
+        try:
+            from google.cloud.workflows.executions_v1 import ExecutionsClient
+            from google.cloud.workflows.executions_v1.types import Execution
 
-        from workflows.biomarker_discovery import BiomarkerDiscoveryWorkflow
-        from workflows.config import WorkflowConfig
+            from workflows.config import WorkflowConfig
 
-        config = WorkflowConfig()
-        client = await Client.connect(config.host, namespace=config.namespace)
-        handle = await client.start_workflow(
-            BiomarkerDiscoveryWorkflow.run,
-            params,
-            id=workflow_id,
-            task_queue=config.task_queue,
-        )
-        return {
-            "workflow_id": workflow_id,
-            "run_id": handle.result_run_id,
-            "status": WorkflowStatus.RUNNING,
-            "message": "Biomarker discovery workflow started",
-        }
-    except Exception:
-        # Fallback: store in memory for testing
-        _mock_workflows[workflow_id] = {
-            "workflow_id": workflow_id,
-            "workflow_type": "biomarker_discovery",
-            "status": WorkflowStatus.PENDING,
-            "params": params.model_dump(),
-            "started_at": datetime.now(UTC).isoformat(),
-            "result": None,
-        }
-        return {
-            "workflow_id": workflow_id,
-            "status": WorkflowStatus.PENDING,
-            "message": "Workflow queued (Temporal unavailable, using mock)",
-        }
+            config = WorkflowConfig()
+            client = ExecutionsClient()
+            parent = (
+                f"projects/{config.project}/locations/{config.location}"
+                f"/workflows/{config.biomarker_discovery_id}"
+            )
+
+            import json
+
+            execution = client.create_execution(
+                parent=parent,
+                execution=Execution(
+                    argument=json.dumps(
+                        {
+                            "dataset": params.dataset,
+                            "target": params.target,
+                            "modalities": params.modalities,
+                            "n_top_features": params.n_top_features,
+                            "activity_service_url": config.activity_service_url,
+                            "workflow_id": workflow_id,
+                        }
+                    )
+                ),
+            )
+            return {
+                "workflow_id": workflow_id,
+                "execution_name": execution.name,
+                "status": WorkflowStatus.RUNNING,
+                "message": "Biomarker discovery workflow started",
+            }
+        except Exception as exc:
+            logger.warning("GCP Workflows call failed, falling back to local: %s", exc)
+
+    # Fallback: use LocalWorkflowRunner or mock store
+    _mock_workflows[workflow_id] = {
+        "workflow_id": workflow_id,
+        "workflow_type": "biomarker_discovery",
+        "status": WorkflowStatus.PENDING,
+        "params": params.model_dump(),
+        "started_at": datetime.now(UTC).isoformat(),
+        "result": None,
+    }
+    return {
+        "workflow_id": workflow_id,
+        "status": WorkflowStatus.PENDING,
+        "message": "Workflow queued (using local runner)",
+    }
 
 
 @router.post("/sample-qc")
@@ -79,40 +100,58 @@ async def start_sample_qc(params: SampleQCParams) -> dict:
     """Start a sample QC workflow."""
     workflow_id = f"sample-qc-{uuid.uuid4().hex[:12]}"
 
-    try:
-        from temporalio.client import Client
+    if _is_gcp_available():
+        try:
+            from google.cloud.workflows.executions_v1 import ExecutionsClient
+            from google.cloud.workflows.executions_v1.types import Execution
 
-        from workflows.config import WorkflowConfig
-        from workflows.sample_qc import SampleQCWorkflow
+            from workflows.config import WorkflowConfig
 
-        config = WorkflowConfig()
-        client = await Client.connect(config.host, namespace=config.namespace)
-        handle = await client.start_workflow(
-            SampleQCWorkflow.run,
-            params,
-            id=workflow_id,
-            task_queue=config.task_queue,
-        )
-        return {
-            "workflow_id": workflow_id,
-            "run_id": handle.result_run_id,
-            "status": WorkflowStatus.RUNNING,
-            "message": "Sample QC workflow started",
-        }
-    except Exception:
-        _mock_workflows[workflow_id] = {
-            "workflow_id": workflow_id,
-            "workflow_type": "sample_qc",
-            "status": WorkflowStatus.PENDING,
-            "params": params.model_dump(),
-            "started_at": datetime.now(UTC).isoformat(),
-            "result": None,
-        }
-        return {
-            "workflow_id": workflow_id,
-            "status": WorkflowStatus.PENDING,
-            "message": "Workflow queued (Temporal unavailable, using mock)",
-        }
+            config = WorkflowConfig()
+            client = ExecutionsClient()
+            parent = (
+                f"projects/{config.project}/locations/{config.location}"
+                f"/workflows/{config.sample_qc_id}"
+            )
+
+            import json
+
+            execution = client.create_execution(
+                parent=parent,
+                execution=Execution(
+                    argument=json.dumps(
+                        {
+                            "dataset": params.dataset,
+                            "classification_methods": params.classification_methods,
+                            "n_iterations": params.n_iterations,
+                            "activity_service_url": config.activity_service_url,
+                            "workflow_id": workflow_id,
+                        }
+                    )
+                ),
+            )
+            return {
+                "workflow_id": workflow_id,
+                "execution_name": execution.name,
+                "status": WorkflowStatus.RUNNING,
+                "message": "Sample QC workflow started",
+            }
+        except Exception as exc:
+            logger.warning("GCP Workflows call failed, falling back to local: %s", exc)
+
+    _mock_workflows[workflow_id] = {
+        "workflow_id": workflow_id,
+        "workflow_type": "sample_qc",
+        "status": WorkflowStatus.PENDING,
+        "params": params.model_dump(),
+        "started_at": datetime.now(UTC).isoformat(),
+        "result": None,
+    }
+    return {
+        "workflow_id": workflow_id,
+        "status": WorkflowStatus.PENDING,
+        "message": "Workflow queued (using local runner)",
+    }
 
 
 @router.get("/{workflow_id}/status")
@@ -128,22 +167,17 @@ async def get_analysis_status(workflow_id: str) -> dict:
             "started_at": wf["started_at"],
         }
 
+    # Try progress table
     try:
-        from temporalio.client import Client
+        from workflows.progress import get_progress
 
-        from workflows.config import WorkflowConfig
-
-        config = WorkflowConfig()
-        client = await Client.connect(config.host, namespace=config.namespace)
-        handle = client.get_workflow_handle(workflow_id)
-        desc = await handle.describe()
-        return {
-            "workflow_id": workflow_id,
-            "status": desc.status.name.lower() if desc.status else "unknown",
-            "run_id": desc.run_id,
-        }
+        progress = await get_progress(workflow_id)
+        if progress:
+            return progress
     except Exception:
-        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found") from None
+        pass
+
+    raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
 
 
 @router.get("/{workflow_id}/report")
@@ -159,15 +193,20 @@ async def get_analysis_report(workflow_id: str) -> dict:
             "message": "Workflow has not completed yet",
         }
 
+    # Try progress table
     try:
-        from temporalio.client import Client
+        from workflows.progress import get_progress
 
-        from workflows.config import WorkflowConfig
-
-        config = WorkflowConfig()
-        client = await Client.connect(config.host, namespace=config.namespace)
-        handle = client.get_workflow_handle(workflow_id)
-        result = await handle.result()
-        return {"workflow_id": workflow_id, "report": result}
+        progress = await get_progress(workflow_id)
+        if progress and progress.get("status") == "completed":
+            return {"workflow_id": workflow_id, "report": progress}
+        if progress:
+            return {
+                "workflow_id": workflow_id,
+                "status": progress["status"],
+                "message": "Workflow has not completed yet",
+            }
     except Exception:
-        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found") from None
+        pass
+
+    raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")

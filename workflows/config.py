@@ -1,4 +1,4 @@
-"""Temporal workflow engine configuration."""
+"""GCP Workflows configuration."""
 
 from __future__ import annotations
 
@@ -6,10 +6,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class WorkflowConfig(BaseSettings):
-    """Settings for Temporal connection and task queue."""
+    """Settings for GCP Workflows connection."""
 
-    model_config = SettingsConfigDict(env_prefix="TEMPORAL_", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="WORKFLOWS_", extra="ignore")
 
-    host: str = "localhost:7233"
-    namespace: str = "default"
-    task_queue: str = "genomics-workflows"
+    project: str | None = None
+    location: str = "us-central1"
+    activity_service_url: str = "http://localhost:8081"
+
+    biomarker_discovery_id: str = "precision-genomics-biomarker-discovery"
+    sample_qc_id: str = "precision-genomics-sample-qc"
+    prompt_optimization_id: str = "precision-genomics-prompt-optimization"

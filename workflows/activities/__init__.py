@@ -1,1 +1,1 @@
-"""Temporal activity implementations."""
+"""Activity implementations for workflow orchestration."""

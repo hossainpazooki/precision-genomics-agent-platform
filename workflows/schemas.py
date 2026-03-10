@@ -1,4 +1,4 @@
-"""Workflow I/O schemas for Temporal workflows."""
+"""Workflow I/O schemas."""
 
 from __future__ import annotations
 
@@ -110,4 +110,4 @@ class WorkflowInfo(CustomBaseModel):
     started_at: datetime
     completed_at: datetime | None = None
     run_id: str | None = None
-    task_queue: str = "genomics-workflows"
+    execution_name: str | None = None

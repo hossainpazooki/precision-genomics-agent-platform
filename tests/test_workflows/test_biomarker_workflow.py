@@ -109,16 +109,11 @@ class TestBiomarkerDiscoveryWorkflowLogic:
             "report": {"cross_omics_validation": {"n_overlapping": 2}},
         }
 
-    def test_workflow_phases_defined(self):
-        try:
-            from workflows.biomarker_discovery import PHASES
+    def test_local_runner_exists(self):
+        from workflows.local_runner import LocalWorkflowRunner
 
-            assert "load_and_validate" in PHASES
-            assert "feature_selection" in PHASES
-            assert "compile_report" in PHASES
-            assert len(PHASES) == 7
-        except ImportError:
-            pytest.skip("Temporal SDK not installed")
+        runner = LocalWorkflowRunner()
+        assert hasattr(runner, "run_biomarker_discovery")
 
     def test_params_forwarded_correctly(self):
         params = BiomarkerDiscoveryParams(dataset="test", target="gender", modalities=["proteomics"])

@@ -118,16 +118,11 @@ class TestSampleQCWorkflowLogic:
             },
         }
 
-    def test_workflow_phases_defined(self):
-        try:
-            from workflows.sample_qc import PHASES
+    def test_local_runner_exists(self):
+        from workflows.local_runner import LocalWorkflowRunner
 
-            assert "load_clinical" in PHASES
-            assert "cross_validate" in PHASES
-            assert "generate_report" in PHASES
-            assert len(PHASES) == 6
-        except ImportError:
-            pytest.skip("Temporal SDK not installed")
+        runner = LocalWorkflowRunner()
+        assert hasattr(runner, "run_sample_qc")
 
     def test_saga_compensation_on_failure(self, qc_activity_results):
         classification_flags = qc_activity_results["classification"]["flagged_samples"]
