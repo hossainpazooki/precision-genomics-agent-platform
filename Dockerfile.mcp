@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-RUN pip install --no-cache-dir -e ".[all]"
+RUN pip install --no-cache-dir -e ".[mcp,ml,gcp]"
 
 FROM python:3.11-slim
 
@@ -23,14 +23,11 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY core/ core/
 COPY mcp_server/ mcp_server/
 COPY agent_skills/ agent_skills/
-COPY workflows/ workflows/
-COPY api/ api/
 COPY evals/ evals/
 COPY data/ data/
-COPY prompts/ prompts/
 
-ENV PORT=8000
+EXPOSE 8080
 
-EXPOSE ${PORT}
+ENV PORT=8080
 
-CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT}
+CMD ["python", "-m", "mcp_server.server", "--transport", "sse", "--port", "8080"]
