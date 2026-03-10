@@ -1,0 +1,17 @@
+# Based on Vertex AI pre-built PyTorch container
+FROM us-docker.pkg.dev/vertex-ai/training/pytorch-gpu.2-2:latest
+
+WORKDIR /app
+
+# Install platform dependencies
+COPY pyproject.toml .
+RUN pip install --no-cache-dir ".[ml,llm,gcp,slm]"
+
+# Copy application code
+COPY core/ core/
+COPY training/ training/
+COPY scripts/ scripts/
+COPY evals/ evals/
+
+# Default entrypoint for SLM training
+ENTRYPOINT ["python", "-m", "scripts.slm_train_entrypoint"]
