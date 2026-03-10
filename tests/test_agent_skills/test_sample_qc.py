@@ -27,7 +27,7 @@ def tool_responses_pass():
             "gender_distribution": {"Male": 10, "Female": 10},
             "missing_data_summary": {},
         },
-        "impute_missing_values": {
+        "impute_missing": {
             "genes_before": 50,
             "genes_imputed_mar": 3,
             "genes_assigned_mnar_zero": 0,
@@ -43,7 +43,7 @@ def tool_responses_pass():
             "feature_importances": [],
             "comparison_to_baseline": {},
         },
-        "match_cross_omics_samples": {
+        "match_cross_omics": {
             "distance_matrix_info": {"shape": [20, 20]},
             "identified_mismatches": [],
             "iteration_agreement": 1.0,
@@ -62,7 +62,7 @@ def tool_responses_warning():
             "gender_distribution": {},
             "missing_data_summary": {},
         },
-        "impute_missing_values": {
+        "impute_missing": {
             "genes_before": 50,
             "genes_imputed_mar": 3,
             "genes_assigned_mnar_zero": 0,
@@ -78,7 +78,7 @@ def tool_responses_warning():
             "feature_importances": [],
             "comparison_to_baseline": {},
         },
-        "match_cross_omics_samples": {
+        "match_cross_omics": {
             "distance_matrix_info": {},
             "identified_mismatches": [
                 {"sample_id": "S003", "agreement": 0.9},
@@ -122,7 +122,7 @@ async def test_qc_fail():
             "gender_distribution": {},
             "missing_data_summary": {},
         },
-        "impute_missing_values": {
+        "impute_missing": {
             "genes_before": 50,
             "genes_imputed_mar": 0,
             "genes_assigned_mnar_zero": 0,
@@ -138,7 +138,7 @@ async def test_qc_fail():
             "feature_importances": [],
             "comparison_to_baseline": {},
         },
-        "match_cross_omics_samples": {
+        "match_cross_omics": {
             "distance_matrix_info": {},
             "identified_mismatches": [{"sample_id": f"S{i:03d}"} for i in range(5)],
             "iteration_agreement": 0.6,

@@ -110,6 +110,29 @@ KNOWN_MSI_PATHWAY_MARKERS: dict[str, list[str]] = {
     "mismatch_repair_adjacent": ["CIITA", "TYMP"],
 }
 
+PATHWAY_MECHANISMS: dict[str, str] = {
+    "immune_infiltration": (
+        "MSI-H tumors recruit immune cells via neoantigen presentation, "
+        "leading to upregulation of leukocyte surface markers (PTPRC/CD45, ITGB2) "
+        "and immune cell-specific proteins (LCP1, NCF2)."
+    ),
+    "interferon_response": (
+        "Frameshift neoantigens in MSI-H tumors activate interferon-gamma signaling, "
+        "inducing GBP1/GBP4 guanylate-binding proteins and downstream effectors "
+        "(IRF1, IFI35, WARS/tryptophanyl-tRNA synthetase)."
+    ),
+    "antigen_presentation": (
+        "MSI-H tumors upregulate MHC class I antigen processing via TAP1/TAPBP "
+        "transporters and express immune checkpoint ligands (LAG3) as an "
+        "immune evasion counter-response."
+    ),
+    "mismatch_repair_adjacent": (
+        "Genes adjacent to or regulated by mismatch repair loci show altered expression: "
+        "CIITA (MHC class II transactivator, chromosome 16p13) and TYMP (thymidine "
+        "phosphorylase, involved in pyrimidine salvage)."
+    ),
+}
+
 # All known MSI markers flattened
 ALL_KNOWN_MSI_MARKERS: set[str] = {gene for genes in KNOWN_MSI_PATHWAY_MARKERS.values() for gene in genes}
 

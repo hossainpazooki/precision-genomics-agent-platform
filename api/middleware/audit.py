@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-import logging
 import time
 import uuid
 from typing import TYPE_CHECKING
 
+import structlog
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import Response
 
-logger = logging.getLogger("audit")
+logger = structlog.get_logger("audit")
 
 
 class AuditMiddleware(BaseHTTPMiddleware):
@@ -33,22 +33,22 @@ class AuditMiddleware(BaseHTTPMiddleware):
         start_time = time.monotonic()
 
         logger.info(
-            "request_start | id=%s method=%s path=%s",
-            request_id,
-            request.method,
-            request.url.path,
+            "request_start",
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
         )
 
         response = await call_next(request)
 
         duration_ms = (time.monotonic() - start_time) * 1000
         logger.info(
-            "request_end | id=%s method=%s path=%s status=%d duration_ms=%.1f",
-            request_id,
-            request.method,
-            request.url.path,
-            response.status_code,
-            duration_ms,
+            "request_end",
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            duration_ms=round(duration_ms, 1),
         )
 
         response.headers["X-Request-ID"] = request_id

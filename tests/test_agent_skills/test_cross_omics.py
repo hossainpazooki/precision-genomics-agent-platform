@@ -26,7 +26,7 @@ def tool_responses():
             "gender_distribution": {"Male": 10, "Female": 10},
             "missing_data_summary": {},
         },
-        "impute_missing_values": {
+        "impute_missing": {
             "genes_before": 50,
             "genes_imputed_mar": 3,
             "genes_assigned_mnar_zero": 0,
@@ -40,7 +40,7 @@ def tool_responses():
             "availability_scores": {},
             "imputation_impact": {},
         },
-        "match_cross_omics_samples": {
+        "match_cross_omics": {
             "distance_matrix_info": {"shape": [20, 20]},
             "identified_mismatches": [{"sample_id": "S003"}],
             "iteration_agreement": 0.93,

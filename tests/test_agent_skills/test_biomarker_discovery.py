@@ -29,7 +29,7 @@ def tool_responses():
             "gender_distribution": {"Male": 10, "Female": 10},
             "missing_data_summary": {"proteomics": 10.5, "rnaseq": 8.2},
         },
-        "impute_missing_values": {
+        "impute_missing": {
             "genes_before": 50,
             "genes_imputed_mar": 5,
             "genes_assigned_mnar_zero": 2,
@@ -59,7 +59,7 @@ def tool_responses():
             "feature_importances": [],
             "comparison_to_baseline": {"baseline_f1": 0.50},
         },
-        "match_cross_omics_samples": {
+        "match_cross_omics": {
             "distance_matrix_info": {"shape": [20, 20]},
             "identified_mismatches": [{"sample_id": "S003"}],
             "iteration_agreement": 0.95,
@@ -133,11 +133,11 @@ async def test_skill_calls_all_tools(tool_responses):
 
     called_tools = [call.args[0] for call in caller.call_args_list]
     assert "load_dataset" in called_tools
-    assert "impute_missing_values" in called_tools
+    assert "impute_missing" in called_tools
     assert "check_availability" in called_tools
     assert "select_biomarkers" in called_tools
     assert "run_classification" in called_tools
-    assert "match_cross_omics_samples" in called_tools
+    assert "match_cross_omics" in called_tools
     assert "explain_features" in called_tools
 
 

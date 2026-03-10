@@ -55,7 +55,7 @@ class CrossOmicsIntegrationSkill:
         # Step 2: Impute both modalities
         for modality in ("proteomics", "rnaseq"):
             impute_result = await self._call_tool(
-                "impute_missing_values",
+                "impute_missing",
                 dataset=dataset,
                 modality=modality,
                 strategy=config.get("impute_strategy", "nmf"),
@@ -73,7 +73,7 @@ class CrossOmicsIntegrationSkill:
 
         # Step 4: Cross-omics matching
         match_result = await self._call_tool(
-            "match_cross_omics_samples",
+            "match_cross_omics",
             dataset=dataset,
             distance_method=config.get("distance_method", "both"),
             n_iterations=config.get("n_iterations", 100),

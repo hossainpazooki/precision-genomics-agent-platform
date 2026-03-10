@@ -13,6 +13,7 @@ import pandas as pd
 
 from core.availability import AvailabilityFilter
 from core.classifier import EnsembleMismatchClassifier
+from core.config import get_settings
 from core.cross_omics_matcher import CrossOmicsMatcher
 from core.data_loader import OmicsDataLoader
 from core.feature_selection import MultiStrategySelector
@@ -98,6 +99,9 @@ class COSMOInspiredPipeline:
         # ---- Stage 3: Predict ----
         stage3 = self._stage_predict(imputed_prot, gender_labels, msi_labels, mismatch_labels)
         results["stages"]["predict"] = stage3
+
+        # ---- Model persistence (optional) ----
+        self._persist_model_if_enabled(stage3, results)
 
         # ---- Stage 4: Correct ----
         classification_flags = stage3.get("flagged_samples", [])
@@ -258,6 +262,7 @@ class COSMOInspiredPipeline:
 
                 flagged = [common[i] for i, p in enumerate(preds) if p == 1]
                 result["flagged_samples"] = flagged
+                result["_classifier"] = classifier
                 result["classification_result"] = {
                     "n_flagged": len(flagged),
                     "confidence_mean": float(np.mean(pred_result["confidence_scores"])),
@@ -267,6 +272,46 @@ class COSMOInspiredPipeline:
                 result["flagged_samples"] = []
 
         return result
+
+    def _persist_model_if_enabled(self, stage3: dict, results: dict) -> None:
+        """Optionally serialize, upload, and register the trained model."""
+        settings = get_settings()
+        if not settings.persist_models:
+            return
+
+        try:
+            from core.model_registry import register_with_vertex, save_to_gcs, serialize_model
+
+            classifier = stage3.get("_classifier")
+            if classifier is None:
+                return
+
+            metadata = {
+                "classification_result": stage3.get("classification_result", {}),
+                "feature_panel": stage3.get("feature_panel", {}),
+            }
+            artifact = serialize_model(classifier, metadata)
+
+            if settings.gcs_model_bucket:
+                import uuid
+
+                run_id = str(uuid.uuid4())[:8]
+                path = f"models/{run_id}/model.joblib"
+                artifact_uri = save_to_gcs(artifact, settings.gcs_model_bucket, path)
+                results["model_artifact_uri"] = artifact_uri
+
+                if settings.register_vertex_models:
+                    register_with_vertex(
+                        artifact_uri=f"gs://{settings.gcs_model_bucket}/models/{run_id}",
+                        display_name=f"precision-genomics-{run_id}",
+                        labels={"pipeline": "cosmo-inspired"},
+                        project=settings.gcp_project_id,
+                        location=settings.gcp_region,
+                    )
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).warning("Model persistence failed", exc_info=True)
 
     def _stage_correct(
         self,

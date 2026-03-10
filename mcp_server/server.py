@@ -1,13 +1,14 @@
 """MCP server entrypoint for the Precision Genomics Agent Platform.
 
 Exposes 8 genomics tools over the Model Context Protocol (MCP) via stdio
-transport.  Each tool validates its input with a Pydantic schema, delegates
-to the corresponding ``mcp_server/tools/*.py`` function, and returns a
-structured output schema.
+or SSE transport.  Each tool validates its input with a Pydantic schema,
+delegates to the corresponding ``mcp_server/tools/*.py`` function, and
+returns a structured output schema.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import logging
@@ -24,10 +25,19 @@ except ImportError:
     Server = None  # type: ignore[assignment,misc]
     _MCP_AVAILABLE = False
 
+try:
+    from mcp.server.sse import SseServerTransport
+
+    _SSE_AVAILABLE = True
+except ImportError:
+    SseServerTransport = None  # type: ignore[assignment,misc]
+    _SSE_AVAILABLE = False
+
 from mcp_server.schemas.omics import (  # noqa: E402
     CheckAvailabilityInput,
     EvaluateModelInput,
     ExplainFeaturesInput,
+    ExplainFeaturesLocalInput,
     ImputeMissingInput,
     LoadDatasetInput,
     MatchCrossOmicsInput,
@@ -87,6 +97,12 @@ _TOOL_REGISTRY: dict[str, tuple[type, str, str]] = {
         "mcp_server.tools.explainer",
         "Generate biological explanations for selected biomarker genes "
         "using known MSI pathway markers and optional LLM enrichment.",
+    ),
+    "explain_features_local": (
+        ExplainFeaturesLocalInput,
+        "mcp_server.tools.explain_features_local",
+        "Generate biological explanations using the fine-tuned SLM (BioMistral) "
+        "with fallback to static pathway knowledge if SLM is unavailable.",
     ),
 }
 
@@ -161,7 +177,57 @@ def create_server() -> Server:
     return server
 
 
-async def main() -> None:
+def create_sse_app():  # noqa: ANN202
+    """Create a Starlette ASGI app for SSE transport.
+
+    Routes:
+        GET  /sse       — SSE event stream
+        POST /messages  — Client message handler
+        GET  /health    — Health check
+    """
+    if not _SSE_AVAILABLE:
+        raise ImportError(
+            "SSE transport requires the mcp package with SSE support. "
+            "Install with: pip install 'mcp[sse]'"
+        )
+
+    from starlette.applications import Starlette
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+
+    sse_transport = SseServerTransport("/messages")
+    server = create_server()
+
+    async def handle_sse(request: Request):  # noqa: ANN202
+        async with sse_transport.connect_sse(
+            request.scope, request.receive, request._send
+        ) as streams:
+            await server.run(
+                streams[0],
+                streams[1],
+                server.create_initialization_options(),
+            )
+
+    async def handle_messages(request: Request):  # noqa: ANN202
+        await sse_transport.handle_post_message(
+            request.scope, request.receive, request._send
+        )
+
+    async def health(request: Request) -> JSONResponse:
+        return JSONResponse({"status": "healthy", "transport": "sse"})
+
+    app = Starlette(
+        routes=[
+            Route("/sse", endpoint=handle_sse),
+            Route("/messages", endpoint=handle_messages, methods=["POST"]),
+            Route("/health", endpoint=health),
+        ],
+    )
+    return app
+
+
+async def main_stdio() -> None:
     """Run the MCP server over stdio transport."""
     server = create_server()
     async with stdio_server() as (read_stream, write_stream):
@@ -172,5 +238,29 @@ async def main() -> None:
         )
 
 
+async def main_sse(host: str = "0.0.0.0", port: int = 8080) -> None:
+    """Run the MCP server over SSE transport with uvicorn."""
+    import uvicorn
+
+    app = create_sse_app()
+    config = uvicorn.Config(app, host=host, port=port, log_level="info")
+    server = uvicorn.Server(config)
+    await server.serve()
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="MCP Genomics Server")
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "sse"],
+        default="stdio",
+        help="Transport protocol (default: stdio)",
+    )
+    parser.add_argument("--host", default="0.0.0.0", help="SSE host (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=8080, help="SSE port (default: 8080)")
+    args = parser.parse_args()
+
+    if args.transport == "sse":
+        asyncio.run(main_sse(host=args.host, port=args.port))
+    else:
+        asyncio.run(main_stdio())

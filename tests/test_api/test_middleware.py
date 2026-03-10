@@ -27,7 +27,8 @@ class TestAuthMiddleware:
         assert response.status_code == 200
 
     def test_auth_required_missing_key(self):
-        with patch("core.config.get_settings") as mock_settings:
+        with patch("core.config.get_settings") as mock_settings, \
+             patch("api.middleware.auth.get_settings", mock_settings):
             settings = mock_settings.return_value
             settings.app_name = "Test"
             settings.environment = "test"
@@ -41,7 +42,8 @@ class TestAuthMiddleware:
             assert response.status_code == 401
 
     def test_auth_required_valid_key(self):
-        with patch("core.config.get_settings") as mock_settings:
+        with patch("core.config.get_settings") as mock_settings, \
+             patch("api.middleware.auth.get_settings", mock_settings):
             settings = mock_settings.return_value
             settings.app_name = "Test"
             settings.environment = "test"
@@ -58,7 +60,8 @@ class TestAuthMiddleware:
             assert response.status_code == 200
 
     def test_auth_required_invalid_key(self):
-        with patch("core.config.get_settings") as mock_settings:
+        with patch("core.config.get_settings") as mock_settings, \
+             patch("api.middleware.auth.get_settings", mock_settings):
             settings = mock_settings.return_value
             settings.app_name = "Test"
             settings.environment = "test"
@@ -75,7 +78,8 @@ class TestAuthMiddleware:
             assert response.status_code == 403
 
     def test_skip_paths_bypass_auth(self):
-        with patch("core.config.get_settings") as mock_settings:
+        with patch("core.config.get_settings") as mock_settings, \
+             patch("api.middleware.auth.get_settings", mock_settings):
             settings = mock_settings.return_value
             settings.app_name = "Test"
             settings.environment = "test"
@@ -89,7 +93,8 @@ class TestAuthMiddleware:
             assert response.status_code == 200
 
     def test_root_bypasses_auth(self):
-        with patch("core.config.get_settings") as mock_settings:
+        with patch("core.config.get_settings") as mock_settings, \
+             patch("api.middleware.auth.get_settings", mock_settings):
             settings = mock_settings.return_value
             settings.app_name = "Test"
             settings.environment = "test"

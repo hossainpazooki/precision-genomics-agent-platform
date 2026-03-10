@@ -13,7 +13,10 @@ from core.config import get_settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown hooks."""
-    get_settings()
+    settings = get_settings()
+    from core.logging import setup_logging
+
+    setup_logging(settings.environment)
     yield
     from core.database import reset_engine
 

@@ -85,20 +85,38 @@ class EnsembleMismatchClassifier:
 
         return predictions
 
-    def _make_base_classifiers(self) -> dict:
-        """Build the 4 base classifier types."""
-        return {
-            "knn": KNeighborsClassifier(
-                n_neighbors=min(5, 3),
-                algorithm="auto",
-            ),
-            "lasso": LogisticRegressionCV(
+    def _make_base_classifiers(self, multiclass: bool = False) -> dict:
+        """Build the 4 base classifier types.
+
+        Parameters
+        ----------
+        multiclass : bool
+            If True, use solvers that support >2 classes (e.g. saga instead of
+            liblinear for L1 logistic regression).
+        """
+        if multiclass:
+            lasso = LogisticRegressionCV(
+                penalty="l1",
+                solver="saga",
+                cv=2,
+                random_state=self.random_state,
+                max_iter=5000,
+            )
+        else:
+            lasso = LogisticRegressionCV(
                 penalty="l1",
                 solver="liblinear",
                 cv=2,
                 random_state=self.random_state,
                 max_iter=5000,
+            )
+
+        return {
+            "knn": KNeighborsClassifier(
+                n_neighbors=min(5, 3),
+                algorithm="auto",
             ),
+            "lasso": lasso,
             "nsc_proxy": LogisticRegression(
                 penalty="l2",
                 solver="lbfgs",
@@ -140,11 +158,12 @@ class EnsembleMismatchClassifier:
         self.scaler_ = StandardScaler()
         X_scaled = self.scaler_.fit_transform(X_arr)
 
-        # Joint label: combine gender + MSI
-        y_gender_arr * 10 + y_msi_arr
+        # Joint label: combine gender + MSI into 4-class target
+        y_joint = y_gender_arr * 10 + y_msi_arr
 
         # Train base classifiers for each strategy
-        base_classifiers = self._make_base_classifiers()
+        base_classifiers = self._make_base_classifiers(multiclass=False)
+        joint_classifiers = self._make_base_classifiers(multiclass=True)
 
         for clf_name, clf_template in base_classifiers.items():
             # Separate strategy: gender
@@ -162,6 +181,14 @@ class EnsembleMismatchClassifier:
                 warnings.simplefilter("ignore")
                 clf_m.fit(X_scaled, y_msi_arr)
             self.classifiers_[key_msi] = clf_m
+
+            # Joint strategy: 4-class (gender * 10 + MSI)
+            key_joint = f"{clf_name}_joint"
+            clf_j = _clone_estimator(joint_classifiers[clf_name])
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                clf_j.fit(X_scaled, y_joint)
+            self.classifiers_[key_joint] = clf_j
 
         # Meta-learner: stacked predictions -> mismatch label
         n_folds = min(5, min(np.bincount(mismatch_arr)))
@@ -187,11 +214,14 @@ class EnsembleMismatchClassifier:
         """Generate stacked predictions for meta-learner training."""
         meta_cols = []
 
-        base_classifiers = self._make_base_classifiers()
+        y_joint = y_gender * 10 + y_msi
+        base_classifiers = self._make_base_classifiers(multiclass=False)
+        joint_classifiers = self._make_base_classifiers(multiclass=True)
 
-        for _clf_name, clf_template in base_classifiers.items():
-            for _target_name, y_target in [("gender", y_gender), ("msi", y_msi)]:
-                clf = _clone_estimator(clf_template)
+        for clf_name, clf_template in base_classifiers.items():
+            for target_name, y_target in [("gender", y_gender), ("msi", y_msi), ("joint", y_joint)]:
+                template = joint_classifiers[clf_name] if target_name == "joint" else clf_template
+                clf = _clone_estimator(template)
                 cv = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=self.random_state)
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
@@ -243,12 +273,16 @@ class EnsembleMismatchClassifier:
 
         # Strategy comparison
         separate_votes = []
+        joint_votes = []
         for key, preds in per_classifier.items():
             if "separate" in key:
                 separate_votes.append(np.array(preds))
+            elif "joint" in key:
+                joint_votes.append(np.array(preds))
 
         strategy_comparison = {
             "separate_agreement": _vote_agreement(separate_votes) if separate_votes else 0.0,
+            "joint_agreement": _vote_agreement(joint_votes) if joint_votes else 0.0,
         }
 
         return {
@@ -310,3 +344,15 @@ def _vote_agreement(vote_arrays: list[np.ndarray]) -> float:
     stacked = np.column_stack(vote_arrays)
     agree = np.all(stacked == stacked[:, :1], axis=1)
     return float(np.mean(agree))
+
+
+def get_classifier(random_state: int = 42, prefer_gpu: bool = False):
+    """Factory: returns GPU classifier if available and preferred, else CPU."""
+    if prefer_gpu:
+        try:
+            from core.gpu_classifier import GPUEnsembleMismatchClassifier
+
+            return GPUEnsembleMismatchClassifier(random_state=random_state)
+        except ImportError:
+            pass
+    return EnsembleMismatchClassifier(random_state=random_state)

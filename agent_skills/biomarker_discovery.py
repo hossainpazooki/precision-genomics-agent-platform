@@ -5,10 +5,13 @@ Orchestrates the full pipeline from data loading through feature explanation.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+logger = logging.getLogger(__name__)
 
 
 class BiomarkerDiscoverySkill:
@@ -50,7 +53,7 @@ class BiomarkerDiscoverySkill:
         impute_results: dict[str, Any] = {}
         for modality in modalities:
             impute_result = await self._call_tool(
-                "impute_missing_values",
+                "impute_missing",
                 dataset=config.get("dataset", "train"),
                 modality=modality,
                 strategy=config.get("impute_strategy", "nmf"),
@@ -92,7 +95,7 @@ class BiomarkerDiscoverySkill:
 
         # Step 6: Cross-omics matching
         match_result = await self._call_tool(
-            "match_cross_omics_samples",
+            "match_cross_omics",
             dataset=config.get("dataset", "train"),
             distance_method=config.get("distance_method", "both"),
             n_iterations=config.get("n_iterations", 100),
@@ -126,3 +129,74 @@ class BiomarkerDiscoverySkill:
         }
 
         return report
+
+    async def interpret_gene_panel(
+        self,
+        genes: list[str],
+        target: str = "msi",
+        config: dict | None = None,
+    ) -> dict:
+        """Interpret a gene panel using SLM for known genes and Claude for novel genes.
+
+        Known genes (in ALL_KNOWN_MSI_MARKERS) are routed to the SLM explainer.
+        Novel genes are routed to Claude (existing explainer).
+        Gated by `enable_slm_routing` config flag from Settings.
+        """
+        from core.constants import ALL_KNOWN_MSI_MARKERS
+        from core.config import get_settings
+
+        settings = get_settings()
+        enable_slm = settings.enable_slm_routing
+
+        known_genes = [g for g in genes if g in ALL_KNOWN_MSI_MARKERS]
+        novel_genes = [g for g in genes if g not in ALL_KNOWN_MSI_MARKERS]
+
+        results: dict[str, Any] = {
+            "known_genes": {},
+            "novel_genes": {},
+            "routing": {
+                "slm_enabled": enable_slm,
+                "known_count": len(known_genes),
+                "novel_count": len(novel_genes),
+            },
+        }
+
+        # Route known genes to SLM if enabled
+        if known_genes and enable_slm:
+            try:
+                slm_result = await self._call_tool(
+                    "explain_features_local",
+                    genes=known_genes,
+                    context=f"{target}_classification",
+                    target=target,
+                )
+                results["known_genes"] = slm_result
+            except Exception:
+                logger.warning("SLM explainer failed for known genes, falling back to Claude")
+                slm_result = await self._call_tool(
+                    "explain_features",
+                    genes=known_genes,
+                    context=f"{target}_classification",
+                    include_provenance=True,
+                )
+                results["known_genes"] = slm_result
+        elif known_genes:
+            known_result = await self._call_tool(
+                "explain_features",
+                genes=known_genes,
+                context=f"{target}_classification",
+                include_provenance=True,
+            )
+            results["known_genes"] = known_result
+
+        # Route novel genes to Claude (existing explainer)
+        if novel_genes:
+            novel_result = await self._call_tool(
+                "explain_features",
+                genes=novel_genes,
+                context=f"{target}_classification",
+                include_provenance=True,
+            )
+            results["novel_genes"] = novel_result
+
+        return results

@@ -48,7 +48,7 @@ class SampleQCSkill:
 
         # Impute before analysis
         await self._call_tool(
-            "impute_missing_values",
+            "impute_missing",
             dataset=dataset,
             modality="proteomics",
             strategy=config.get("impute_strategy", "nmf"),
@@ -69,7 +69,7 @@ class SampleQCSkill:
 
         # Path B: Cross-omics distance matching
         match_result = await self._call_tool(
-            "match_cross_omics_samples",
+            "match_cross_omics",
             dataset=dataset,
             distance_method=config.get("distance_method", "both"),
             n_iterations=config.get("n_iterations", 100),

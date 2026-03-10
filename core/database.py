@@ -1,4 +1,4 @@
-"""Database connection management for PostgreSQL + TimescaleDB."""
+"""Database connection management for PostgreSQL (local or Cloud SQL)."""
 
 from __future__ import annotations
 
@@ -33,19 +33,47 @@ def _normalize_url(url: str) -> str:
     return url
 
 
+def _create_cloud_sql_engine(settings):  # noqa: ANN001, ANN202
+    """Create an engine using the Cloud SQL Python Connector for IAM auth."""
+    from google.cloud.sql.connector import Connector
+
+    connector = Connector()
+
+    def getconn():  # noqa: ANN202
+        return connector.connect(
+            settings.cloud_sql_instance,
+            "pg8000",
+            user="app",
+            db="precision_genomics",
+            enable_iam_auth=True,
+        )
+
+    return create_engine(
+        "postgresql+pg8000://",
+        creator=getconn,
+        echo=settings.debug,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
+
+
 def get_engine():
     """Get SQLAlchemy engine with connection pooling (lazy singleton)."""
     global _engine
     if _engine is None:
         settings = get_settings()
-        database_url = _normalize_url(settings.database_url)
-        _engine = create_engine(
-            database_url,
-            echo=settings.debug,
-            pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
-        )
+        if settings.cloud_sql_instance:
+            _engine = _create_cloud_sql_engine(settings)
+        else:
+            database_url = _normalize_url(settings.database_url)
+            _engine = create_engine(
+                database_url,
+                echo=settings.debug,
+                pool_pre_ping=True,
+                pool_size=5,
+                max_overflow=10,
+            )
     return _engine
 
 
@@ -63,39 +91,28 @@ def get_session() -> Generator[Session, None, None]:
         yield session
 
 
-def init_timescaledb_hypertable(table_name: str, time_column: str = "ts") -> None:
-    """Initialize a TimescaleDB hypertable for time-series data.
+def init_composite_index(table_name: str) -> None:
+    """Create a composite index for time-series-like queries.
 
-    Safe to call multiple times; skips if already a hypertable or if
-    TimescaleDB is not installed.
+    Replaces the previous TimescaleDB hypertable approach with a standard
+    PostgreSQL composite index compatible with Cloud SQL.
     """
     engine = get_engine()
+    index_name = f"ix_{table_name}_panel_feature_ts"
     try:
         with engine.connect() as conn:
             result = conn.execute(
-                text("SELECT EXISTS (  SELECT FROM information_schema.tables  WHERE table_name = :table_name)"),
+                text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = :table_name)"),
                 {"table_name": table_name},
             )
             if not result.scalar():
                 return
 
-            result = conn.execute(
-                text(
-                    "SELECT EXISTS ("
-                    "  SELECT FROM timescaledb_information.hypertables"
-                    "  WHERE hypertable_name = :table_name"
-                    ")"
-                ),
-                {"table_name": table_name},
-            )
-            if result.scalar():
-                return
-
             conn.execute(
                 text(
-                    "SELECT create_hypertable(:table_name, :time_column, if_not_exists => TRUE, migrate_data => TRUE)"
-                ),
-                {"table_name": table_name, "time_column": time_column},
+                    f"CREATE INDEX IF NOT EXISTS {index_name} "  # noqa: S608
+                    f"ON {table_name} (panel_id, feature_name, ts DESC)"
+                )
             )
             conn.commit()
     except Exception:

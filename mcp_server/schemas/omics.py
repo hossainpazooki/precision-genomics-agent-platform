@@ -190,3 +190,16 @@ class ExplainFeaturesOutput(CustomBaseModel):
     """Output from feature explanation."""
 
     explanations: list[dict]
+
+
+# ---------------------------------------------------------------------------
+# 9. Explain Features (Local SLM)
+# ---------------------------------------------------------------------------
+
+
+class ExplainFeaturesLocalInput(CustomBaseModel):
+    """Input for local SLM-based feature explanation."""
+
+    genes: list[str]
+    context: str = "msi_classification"
+    target: str = "msi"

@@ -1,6 +1,10 @@
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.storage import StorageBackend
 
 
 @dataclass
@@ -15,10 +19,14 @@ class EvalResult:
 class BenchmarkComparisonEval:
     """Compare agent-selected panel against published benchmark signatures."""
 
-    def __init__(self, fixtures_path: str | None = None):
-        path = Path(fixtures_path or Path(__file__).parent / "fixtures" / "known_msi_signatures.json")
-        with open(path) as f:
-            data = json.load(f)
+    def __init__(self, fixtures_path: str | None = None, storage_backend: "StorageBackend | None" = None):
+        if storage_backend is not None and fixtures_path:
+            data_bytes = storage_backend.read_bytes(fixtures_path)
+            data = json.loads(data_bytes)
+        else:
+            path = Path(fixtures_path or Path(__file__).parent / "fixtures" / "known_msi_signatures.json")
+            with open(path) as f:
+                data = json.load(f)
         self.benchmarks = data["published_signatures"]
 
     def jaccard(self, a: set, b: set) -> float:

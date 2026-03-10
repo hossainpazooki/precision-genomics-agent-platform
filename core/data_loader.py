@@ -6,35 +6,45 @@ and RNA-Seq modalities.
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from core.config import get_settings
 
+if TYPE_CHECKING:
+    from core.storage import StorageBackend
+
 
 class OmicsDataLoader:
     """Load and merge multi-omics datasets from TSV files."""
 
-    def __init__(self, data_dir: str | None = None) -> None:
+    def __init__(self, data_dir: str | None = None, storage_backend: StorageBackend | None = None) -> None:
+        self.storage_backend = storage_backend
         self.data_dir = Path(data_dir) if data_dir else Path(get_settings().raw_data_dir)
+
+    def _read_tsv(self, filename: str, **kwargs) -> pd.DataFrame:  # noqa: ANN003
+        """Read a TSV file from storage backend or local filesystem."""
+        if self.storage_backend is not None:
+            data = self.storage_backend.read_bytes(filename)
+            return pd.read_csv(io.BytesIO(data), sep="\t", **kwargs)
+        path = self.data_dir / filename
+        return pd.read_csv(path, sep="\t", **kwargs)
 
     def load_clinical(self, dataset: str = "train") -> pd.DataFrame:
         """Load clinical annotations (sample_id, MSI_status, gender, etc.)."""
-        path = self.data_dir / f"{dataset}_cli.tsv"
-        df = pd.read_csv(path, sep="\t")
-        return df
+        return self._read_tsv(f"{dataset}_cli.tsv")
 
     def load_proteomics(self, dataset: str = "train") -> pd.DataFrame:
-        """Load proteomics expression matrix (genes as rows in TSV, transposed to samples×genes)."""
-        path = self.data_dir / f"{dataset}_pro.tsv"
-        df = pd.read_csv(path, sep="\t", index_col=0)
+        """Load proteomics expression matrix (genes as rows in TSV, transposed to samples x genes)."""
+        df = self._read_tsv(f"{dataset}_pro.tsv", index_col=0)
         return df.T
 
     def load_rnaseq(self, dataset: str = "train") -> pd.DataFrame:
-        """Load RNA-Seq expression matrix (transposed to samples×genes)."""
-        path = self.data_dir / f"{dataset}_rna.tsv"
-        df = pd.read_csv(path, sep="\t", index_col=0)
+        """Load RNA-Seq expression matrix (transposed to samples x genes)."""
+        df = self._read_tsv(f"{dataset}_rna.tsv", index_col=0)
         return df.T
 
     def merge_clinical_molecular(self, clinical_df: pd.DataFrame, molecular_df: pd.DataFrame) -> pd.DataFrame:

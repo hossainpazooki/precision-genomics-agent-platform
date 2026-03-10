@@ -44,8 +44,38 @@ class Settings(BaseSettings):
     # Feature flags
     enable_feature_store: bool = True
 
+    # SLM (Small Language Model) settings
+    slm_adapter_path: str | None = None
+    slm_base_model: str = "BioMistral/BioMistral-7B"
+    slm_endpoint_name: str | None = None
+    enable_slm_routing: bool = False
+
+    # DSPy prompt optimization
+    dspy_prompts_path: str | None = None
+
+    # GPU-accelerated training
+    enable_gpu_training: bool = False
+    gpu_training_image: str | None = None
+
+    # GCP settings
+    gcp_project_id: str | None = None
+    gcp_region: str = "us-central1"
+    gcs_data_bucket: str | None = None
+    gcs_model_bucket: str | None = None
+    vertex_ai_staging_bucket: str | None = None
+    vertex_ai_experiment_name: str | None = None
+    cloud_sql_instance: str | None = None
+    use_secret_manager: bool = False
+    persist_models: bool = False
+    register_vertex_models: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    settings = Settings()
+    if settings.use_secret_manager and settings.gcp_project_id:
+        from core.secrets import populate_secrets
+
+        populate_secrets(settings)
+    return settings
