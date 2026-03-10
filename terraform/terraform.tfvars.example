@@ -1,0 +1,7 @@
+project_id                = "your-gcp-project-id"
+region                    = "us-central1"
+zone                      = "us-central1-a"
+db_password               = "CHANGE_ME"
+db_tier                   = "db-custom-2-8192"
+anthropic_api_key         = "sk-ant-..."
+vertex_ai_experiment_name = "precision-genomics"
