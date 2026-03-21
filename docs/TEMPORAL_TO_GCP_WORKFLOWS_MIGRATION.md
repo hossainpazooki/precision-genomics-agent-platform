@@ -1,5 +1,7 @@
 # Plan: Migrate from Temporal to GCP Workflows
 
+> **Note:** This is a historical migration document. The Terraform references below reflect the infrastructure tooling at the time of this migration. Infrastructure is now managed with Pulumi in `infra/`. See [GCP_DEPLOYMENT.md](GCP_DEPLOYMENT.md) for current deployment instructions.
+
 ## Context
 
 The platform runs 3 Temporal workflows on a self-managed GCE VM (e2-standard-4, ~$98/month). The rest of the infrastructure is already serverless GCP (Cloud Run, Cloud SQL, GCS, Vertex AI). Migrating to GCP Workflows eliminates the VM, reduces cost to ~$5/month, and simplifies operations by going fully serverless.
