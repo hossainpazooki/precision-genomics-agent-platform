@@ -1,0 +1,152 @@
+name: Deploy via Pulumi
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: "Pulumi stack to deploy"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  REGISTRY: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/precision-genomics
+  PULUMI_STACK: ${{ inputs.stack || 'prod' }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push API image
+        run: |
+          docker build -t ${{ env.REGISTRY }}/api:${{ github.sha }} -t ${{ env.REGISTRY }}/api:latest .
+          docker push ${{ env.REGISTRY }}/api:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/api:latest
+
+      - name: Build and push Worker image
+        run: |
+          docker build -f Dockerfile.worker -t ${{ env.REGISTRY }}/worker:${{ github.sha }} -t ${{ env.REGISTRY }}/worker:latest .
+          docker push ${{ env.REGISTRY }}/worker:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/worker:latest
+
+      - name: Build and push MCP SSE image
+        run: |
+          docker build -f Dockerfile.mcp -t ${{ env.REGISTRY }}/mcp-sse:${{ github.sha }} -t ${{ env.REGISTRY }}/mcp-sse:latest .
+          docker push ${{ env.REGISTRY }}/mcp-sse:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/mcp-sse:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Pulumi dependencies
+        run: pip install -r infra/requirements.txt
+
+      - name: Pulumi Up
+        uses: pulumi/actions@v5
+        with:
+          command: up
+          stack-name: precision-genomics/${{ env.PULUMI_STACK }}
+          work-dir: infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Pulumi dependencies
+        run: pip install -r infra/requirements.txt
+
+      - name: Pulumi Preview
+        uses: pulumi/actions@v5
+        with:
+          command: preview
+          stack-name: precision-genomics/prod
+          work-dir: infra
+          comment-on-pr: true
+          comment-on-pr-number: ${{ github.event.pull_request.number }}
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - name: CrossGuard Policy Check
+        uses: pulumi/actions@v5
+        with:
+          command: preview
+          stack-name: precision-genomics/prod
+          work-dir: infra
+          policyPacks: infra/policies
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
