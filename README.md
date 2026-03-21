@@ -287,7 +287,15 @@ precision-genomics-agent-platform/
 │   ├── encoder_train_entrypoint.py#   Expression encoder training
 │   ├── slm_train_entrypoint.py    #   SLM fine-tuning script
 │   └── vertex_train_entrypoint.py #   Vertex AI training job
-├── terraform/                     # GCP infrastructure as code
+├── infra/                         # Pulumi infrastructure (Python)
+│   ├── __main__.py                #   Entry point wiring all components
+│   ├── config.py                  #   Typed InfraConfig dataclass
+│   ├── components/                #   9 ComponentResources (networking, database, etc.)
+│   ├── policies/                  #   CrossGuard policy-as-code (8 compliance policies)
+│   ├── automation/                #   Automation API (ML-triggered deploys, ephemeral envs)
+│   ├── tests/                     #   pytest infrastructure unit tests
+│   └── Pulumi.{dev,staging,prod}.yaml  # Multi-environment stack configs
+├── terraform/                     # Legacy Terraform (migrated to Pulumi)
 │   ├── main.tf                    #   Root module
 │   ├── variables.tf / outputs.tf  #   Config and outputs
 │   └── modules/                   #   cloud_run, cloud_sql, gcs, vertex_ai, ...
@@ -332,11 +340,34 @@ flowchart TB
 
 All GCP features are optional and gated by environment variables. Local development works without any GCP configuration.
 
+### Infrastructure (Pulumi)
+
+Infrastructure is managed with [Pulumi](https://www.pulumi.com/) using the Python SDK. The `infra/` directory contains 9 reusable `ComponentResource` classes that map 1:1 to the GCP services above.
+
+```bash
+cd infra
+pip install -r requirements.txt
+pulumi stack select dev
+pulumi preview        # Review changes
+pulumi up             # Deploy
+```
+
+**Key features:**
+- **CrossGuard policies** — 8 compliance policies enforce PITR, versioning, private networking, and resource limits
+- **Infrastructure tests** — `pytest infra/tests/` validates resource configuration with mocked Pulumi runtime
+- **Automation API** — scripts for ML-triggered deployments (`deploy_on_model_retrain.py`) and ephemeral PR environments (`ephemeral_env.py`)
+- **Multi-environment** — separate stack configs for dev, staging, and prod
+- **CI/CD** — GitHub Actions runs `pulumi preview` on PRs and `pulumi up` on merge to main
+
+<details>
+<summary>Legacy Terraform (deprecated)</summary>
+
 ```bash
 cd terraform
 cp terraform.tfvars.example terraform.tfvars
 terraform init && terraform apply
 ```
+</details>
 
 See [docs/GCP_DEPLOYMENT.md](docs/GCP_DEPLOYMENT.md) for full instructions.
 
@@ -345,7 +376,7 @@ See [docs/GCP_DEPLOYMENT.md](docs/GCP_DEPLOYMENT.md) for full instructions.
 - [Architecture](docs/ARCHITECTURE.md) — system design and component interactions
 - [Scientific Methodology](docs/SCIENTIFIC_METHODOLOGY.md) — statistical methods and biological rationale
 - [Anthropic Alignment](docs/ANTHROPIC_ALIGNMENT.md) — responsible AI practices and eval design
-- [GCP Deployment](docs/GCP_DEPLOYMENT.md) — Terraform infrastructure and CI/CD
+- [GCP Deployment](docs/GCP_DEPLOYMENT.md) — Pulumi infrastructure and CI/CD
 - [Advanced ML Integration](docs/ADVANCED_ML_INTEGRATION.md) — SLM, DSPy, and GPU training details
 - [Synthetic Data Strategy](docs/SYNTHETIC_DATA_STRATEGY.md) — data generation methodology
 
