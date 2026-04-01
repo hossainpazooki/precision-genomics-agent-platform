@@ -115,6 +115,41 @@ def _require_secret_replication(args: ResourceValidationArgs, report_violation):
             )
 
 
+# ── Intent Lifecycle Policies ──────────────────────────────────────
+
+
+def _enforce_training_gpu_limit(
+    args: ResourceValidationArgs, report_violation,
+) -> None:
+    """Training intents must not exceed max GPU count per stack (4 GPUs)."""
+    if args.resource_type == "gcp:compute/instance:Instance":
+        guest_accelerators = args.props.get("guestAccelerators", [])
+        total_gpus = sum(a.get("count", 0) for a in guest_accelerators)
+        if total_gpus > 4:
+            report_violation(
+                f"Training intent GPU limit exceeded: {total_gpus} GPUs requested, "
+                "maximum 4 allowed per stack."
+            )
+
+
+def _require_intent_labels(
+    args: ResourceValidationArgs, report_violation,
+) -> None:
+    """Resources provisioned by intents should carry intent tracking labels."""
+    intent_resource_types = {
+        "gcp:cloudrunv2/service:Service",
+        "gcp:compute/instance:Instance",
+        "gcp:storage/bucket:Bucket",
+    }
+    if args.resource_type in intent_resource_types:
+        labels = args.props.get("labels", {})
+        if not labels.get("intent-id"):
+            report_violation(
+                "Resources provisioned by intents should carry 'intent-id' "
+                "and 'intent-type' labels for audit traceability."
+            )
+
+
 # ── Aggregate Policy List ───────────────────────────────────────────
 
 policies = [
@@ -164,6 +199,19 @@ policies = [
         name="secret-replication-required",
         description="Secrets must have replication configured",
         validate=_require_secret_replication,
+        enforcement_level=EnforcementLevel.ADVISORY,
+    ),
+    # ── Intent Lifecycle Policies ──────────────────────────────────────
+    ResourceValidationPolicy(
+        name="training-gpu-limit",
+        description="Training intents must not exceed 4 GPUs per stack",
+        validate=_enforce_training_gpu_limit,
+        enforcement_level=EnforcementLevel.MANDATORY,
+    ),
+    ResourceValidationPolicy(
+        name="intent-resource-labels",
+        description="Intent-provisioned resources should carry tracking labels",
+        validate=_require_intent_labels,
         enforcement_level=EnforcementLevel.ADVISORY,
     ),
 ]

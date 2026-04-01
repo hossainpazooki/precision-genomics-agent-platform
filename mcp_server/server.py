@@ -1,6 +1,6 @@
 """MCP server entrypoint for the Precision Genomics Agent Platform.
 
-Exposes 8 genomics tools over the Model Context Protocol (MCP) via stdio
+Exposes genomics tools and intent lifecycle tools over the Model Context Protocol (MCP) via stdio
 or SSE transport.  Each tool validates its input with a Pydantic schema,
 delegates to the corresponding ``mcp_server/tools/*.py`` function, and
 returns a structured output schema.
@@ -43,6 +43,10 @@ from mcp_server.schemas.omics import (  # noqa: E402
     MatchCrossOmicsInput,
     RunClassificationInput,
     SelectBiomarkersInput,
+)
+from mcp_server.schemas.intents import (  # noqa: E402
+    ExpressIntentInput,
+    GetIntentStatusInput,
 )
 
 # ---------------------------------------------------------------------------
@@ -103,6 +107,21 @@ _TOOL_REGISTRY: dict[str, tuple[type, str, str]] = {
         "mcp_server.tools.explain_features_local",
         "Generate biological explanations using the fine-tuned SLM (BioMistral) "
         "with fallback to static pathway knowledge if SLM is unavailable.",
+    ),
+    # --- Intent lifecycle tools ---
+    "express_intent": (
+        ExpressIntentInput,
+        "mcp_server.tools.intent_manager",
+        "Express an intent (analysis, training, or validation) and begin "
+        "its lifecycle. The intent provisions required infrastructure via "
+        "Pulumi, triggers workflows, and uses eval metrics to determine "
+        "success. Returns the intent ID for status tracking.",
+    ),
+    "get_intent_status": (
+        GetIntentStatusInput,
+        "mcp_server.tools.intent_status",
+        "Check the current status, workflow progress, infrastructure state, "
+        "and eval results for an existing intent.",
     ),
 }
 
