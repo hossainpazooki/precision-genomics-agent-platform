@@ -1,9 +1,3 @@
-resource "google_vertex_ai_metadata_store" "main" {
-  provider = google-beta
-  project  = var.project_id
-  region   = var.region
-}
-
 resource "google_vertex_ai_tensorboard" "main" {
   provider     = google-beta
   project      = var.project_id
@@ -14,7 +8,10 @@ resource "google_vertex_ai_tensorboard" "main" {
 variable "project_id" { type = string }
 variable "region" { type = string }
 variable "staging_bucket" { type = string }
-variable "experiment_name" { type = string; default = "precision-genomics" }
+variable "experiment_name" {
+  type    = string
+  default = "precision-genomics"
+}
 
 variable "gpu_machine_types" {
   type    = list(string)

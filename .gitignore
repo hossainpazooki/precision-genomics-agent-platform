@@ -29,6 +29,13 @@ target/
 .env
 .env.local
 
+# Terraform secrets
+terraform.tfvars
+*.tfvars
+.terraform/
+*.tfstate
+*.tfstate.backup
+
 # Data files
 data/raw/*.tsv
 data/raw/*.csv

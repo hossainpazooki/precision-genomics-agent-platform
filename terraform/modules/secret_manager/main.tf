@@ -27,8 +27,14 @@ resource "google_secret_manager_secret_version" "db_password" {
 }
 
 variable "project_id" { type = string }
-variable "anthropic_api_key" { type = string; sensitive = true }
-variable "db_password" { type = string; sensitive = true }
+variable "anthropic_api_key" {
+  type      = string
+  sensitive = true
+}
+variable "db_password" {
+  type      = string
+  sensitive = true
+}
 
 output "anthropic_key_secret_id" { value = google_secret_manager_secret.anthropic_key.secret_id }
 output "db_password_secret_id" { value = google_secret_manager_secret.db_password.secret_id }

@@ -9,6 +9,8 @@ main:
           - n_top_features: ${args.n_top_features}
           - activity_url: ${args.activity_service_url}
           - workflow_id: ${args.workflow_id}
+          - imputation_results: []
+          - feature_panels: []
 
     - load_and_validate:
         call: http.post
@@ -36,6 +38,9 @@ main:
                       workflow_id: ${workflow_id}
                     timeout: 600
                   result: impute_result
+              - collect_imputation:
+                  assign:
+                    - imputation_results: ${list.concat(imputation_results, [impute_result.body.result])}
               - select_features:
                   call: http.post
                   args:
@@ -45,6 +50,9 @@ main:
                       workflow_id: ${workflow_id}
                     timeout: 900
                   result: feature_result
+              - collect_features:
+                  assign:
+                    - feature_panels: ${list.concat(feature_panels, [feature_result.body.result])}
 
     - integrate_and_filter:
         call: http.post

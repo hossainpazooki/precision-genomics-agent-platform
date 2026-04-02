@@ -44,8 +44,14 @@ resource "google_sql_user" "app" {
 variable "project_id" { type = string }
 variable "region" { type = string }
 variable "network_id" { type = string }
-variable "db_password" { type = string; sensitive = true }
-variable "db_tier" { type = string; default = "db-custom-2-8192" }
+variable "db_password" {
+  type      = string
+  sensitive = true
+}
+variable "db_tier" {
+  type    = string
+  default = "db-custom-2-8192"
+}
 
 output "connection_name" { value = google_sql_database_instance.main.connection_name }
 output "private_ip" { value = google_sql_database_instance.main.private_ip_address }
