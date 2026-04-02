@@ -75,13 +75,19 @@ flowchart TB
         CO[Cross-Omics Integration]
         LG[Literature Grounding]
     end
-    subgraph MCP["MCP Tool Layer (9 tools)"]
+    subgraph MCP["MCP Tool Layer (11 tools)"]
         T1[load_dataset]
         T2[impute_missing]
         T3[select_biomarkers]
         T4[run_classification]
         T5[match_cross_omics]
+        TI["express_intent\nget_intent_status"]
         T6["... +4 more"]
+    end
+    subgraph Intent["Intent Lifecycle"]
+        IC["Intent Controller\nobserve-decide-act-verify"]
+        IR["Infra Resolver\nPulumi Automation API"]
+        AL["Assurance Loop\nEval Metrics"]
     end
     subgraph Core["Core ML Engine"]
         IMP[Imputation]
@@ -96,7 +102,12 @@ flowchart TB
     end
     Claude --> Skills
     Skills --> MCP
+    MCP --> Intent
     MCP --> Core
+    Intent --> IR
+    Intent --> AL
+    IC --> Core
+    IR --> Infra
     Core --> Infra
 ```
 
@@ -113,6 +124,8 @@ flowchart TB
 | `evaluate_model` | F1, precision, recall, ROC-AUC |
 | `explain_features` | Biological pathway explanations (Claude) |
 | `explain_features_local` | SLM-based explanations (BioMistral) |
+| `express_intent` | Express an intent (analysis/training/validation) and begin its lifecycle |
+| `get_intent_status` | Check intent progress, workflow state, and eval results |
 
 ### Evaluation Framework
 
@@ -123,6 +136,38 @@ flowchart TB
 | Reproducibility | Pairwise Jaccard over 10 runs | >= 85% |
 | Benchmark Comparison | Overlap with published signatures | Any |
 | SLM Eval | Combined validity + hallucination for SLM | Pass both |
+
+### Intent Lifecycle
+
+The platform implements an **intent lifecycle** layer inspired by intent-based networking (IETF RFC 9315) that formalizes agent goals as infrastructure-level concerns.
+
+```mermaid
+flowchart LR
+    subgraph Observe["Observe"]
+        D["DECLARED\n(intent expressed)"]
+    end
+    subgraph Decide["Decide"]
+        R["RESOLVING\n(provision infra)"]
+    end
+    subgraph Act["Act"]
+        A["ACTIVE\n(workflows running)"]
+    end
+    subgraph Verify["Verify"]
+        V["VERIFYING\n(eval assurance)"]
+    end
+    D --> R --> A --> V --> AC["ACHIEVED"]
+    R -.->|"blocked"| B["BLOCKED"] -.->|"retry"| R
+    A -.-> F1["FAILED"]
+    V -.-> F2["FAILED"]
+```
+
+| Intent Type | Purpose | Infra Needs | Success Criteria |
+|------------|---------|-------------|------------------|
+| **AnalysisIntent** | Biomarker discovery / sample QC | Worker scaled, GCS data staged | Biological validity ≥ 60%, reproducibility ≥ 85% |
+| **TrainingIntent** | Fine-tune BioMistral / encoder | Vertex AI job, GPU allocated (max 4) | Job completion → auto-deploy |
+| **ValidationIntent** | Cross-omics concordance gate | Minimal | Hallucination detection ≥ 90% |
+
+The intent controller provisions infrastructure via **Pulumi Automation API**, triggers workflows, runs the **eval assurance loop**, and tears down resources on completion. See [docs/INTENT_WORKFLOW.md](docs/INTENT_WORKFLOW.md) for the full lifecycle documentation.
 
 ## Advanced ML Integration
 
@@ -280,13 +325,21 @@ precision-genomics-agent-platform/
 ├── mcp_server/                    # Model Context Protocol server
 │   ├── server.py                  #   MCP server entrypoint
 │   ├── schemas/                   #   Request/response schemas
-│   └── tools/                     #   9 genomics tools for Claude
+│   └── tools/                     #   11 tools (9 genomics + 2 intent lifecycle)
 ├── prompts/                       # System prompts for agent orchestration
 ├── scripts/                       # Training entrypoints
 │   ├── compile_dspy.py            #   DSPy compilation script
 │   ├── encoder_train_entrypoint.py#   Expression encoder training
 │   ├── slm_train_entrypoint.py    #   SLM fine-tuning script
 │   └── vertex_train_entrypoint.py #   Vertex AI training job
+├── intents/                       # Intent lifecycle layer
+│   ├── schemas.py                 #   IntentStatus enum, valid transitions
+│   ├── types.py                   #   AnalysisIntentSpec, TrainingIntentSpec, ValidationIntentSpec
+│   ├── models.py                  #   SQLModel tables (intents, intent_events)
+│   ├── controller.py              #   IntentController (observe-decide-act-verify)
+│   ├── infra_resolver.py          #   Maps intent needs → Pulumi Automation API
+│   ├── assurance.py               #   Wraps evals/ for success/failure determination
+│   └── service.py                 #   create_intent(), get_intent(), get_controller()
 ├── infra/                         # Pulumi infrastructure (Python)
 │   ├── __main__.py                #   Entry point wiring all components
 │   ├── config.py                  #   Typed InfraConfig dataclass
@@ -374,6 +427,7 @@ See [docs/GCP_DEPLOYMENT.md](docs/GCP_DEPLOYMENT.md) for full instructions.
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — system design and component interactions
+- [Intent Workflow](docs/INTENT_WORKFLOW.md) — intent lifecycle, state machine, and infrastructure resolution
 - [Scientific Methodology](docs/SCIENTIFIC_METHODOLOGY.md) — statistical methods and biological rationale
 - [Anthropic Alignment](docs/ANTHROPIC_ALIGNMENT.md) — responsible AI practices and eval design
 - [GCP Deployment](docs/GCP_DEPLOYMENT.md) — Pulumi infrastructure and CI/CD
