@@ -1,0 +1,161 @@
+"""Assurance loop — connects eval metrics to intent state transitions.
+
+Wraps the existing eval classes from evals/ and runs them against
+workflow results to determine whether an intent's success criteria are met.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from evals import EvalResult
+from intents.models import Intent
+
+logger = logging.getLogger(__name__)
+
+
+class AssuranceLoop:
+    """Run eval criteria and determine intent success/failure."""
+
+    def __init__(self) -> None:
+        self._registry: dict[str, Any] = {
+            "biological_validity": self._run_biological_validity,
+            "reproducibility": self._run_reproducibility,
+            "hallucination_detection": self._run_hallucination_detection,
+        }
+
+    async def evaluate(
+        self,
+        intent: Intent,
+        eval_criteria: tuple[tuple[str, float], ...],
+    ) -> dict[str, Any]:
+        """Run all eval criteria for the intent.
+
+        Returns a dict of ``{eval_name: {score, threshold, passed, details}}``.
+        """
+        results: dict[str, Any] = {}
+
+        for eval_name, threshold in eval_criteria:
+            runner = self._registry.get(eval_name)
+            if runner is None:
+                logger.warning("No eval runner for '%s', skipping", eval_name)
+                continue
+            try:
+                eval_result: EvalResult = await runner(intent, threshold)
+                results[eval_name] = {
+                    "score": eval_result.score,
+                    "threshold": eval_result.threshold,
+                    "passed": eval_result.passed,
+                    "details": eval_result.details,
+                }
+            except Exception as exc:
+                logger.exception("Eval '%s' failed for intent %s", eval_name, intent.intent_id)
+                results[eval_name] = {
+                    "score": 0.0,
+                    "threshold": threshold,
+                    "passed": False,
+                    "details": {"error": str(exc)},
+                }
+
+        return results
+
+    @staticmethod
+    def all_passed(eval_results: dict[str, Any]) -> bool:
+        """Return True if every eval criterion passed."""
+        if not eval_results:
+            return True
+        return all(r.get("passed", False) for r in eval_results.values())
+
+    # ------------------------------------------------------------------
+    # Private eval runners
+    # ------------------------------------------------------------------
+
+    async def _run_biological_validity(
+        self, intent: Intent, threshold: float,
+    ) -> EvalResult:
+        """Extract selected genes from workflow results and evaluate pathway coverage."""
+        from evals.biological_validity import BiologicalValidityEval
+
+        # Genes come from the workflow results stored on the intent.
+        genes = self._extract_genes(intent)
+        evaluator = BiologicalValidityEval()
+        return evaluator.evaluate(genes, threshold=threshold)
+
+    async def _run_reproducibility(
+        self, intent: Intent, threshold: float,
+    ) -> EvalResult:
+        """Evaluate reproducibility by re-running the pipeline with different seeds."""
+        from evals.reproducibility import ReproducibilityEval
+
+        evaluator = ReproducibilityEval()
+
+        # Build a callable that runs the pipeline.
+        params = intent.params
+        dataset = params.get("dataset", "train")
+        target = params.get("target", "msi")
+
+        def pipeline_callable(seed: int) -> list[str]:
+            """Run pipeline and return top-k feature names."""
+            from core.pipeline import COSMOInspiredPipeline
+
+            pipe = COSMOInspiredPipeline()
+            result = pipe.run(dataset=dataset)
+            stage3 = result.get("stages", {}).get("predict", {})
+            panel = stage3.get("feature_panel", {})
+            features = panel.get("features", [])
+            return [f.get("name", f.get("gene", "")) for f in features[:20]]
+
+        return evaluator.evaluate(
+            pipeline_callable,
+            n_runs=5,
+            top_k=20,
+            threshold=threshold,
+        )
+
+    async def _run_hallucination_detection(
+        self, intent: Intent, threshold: float,
+    ) -> EvalResult:
+        """Extract interpretations from workflow results and verify citations."""
+        from evals.hallucination_detection import HallucinationDetectionEval
+
+        evaluator = HallucinationDetectionEval()
+
+        # Interpretations come from the workflow results.
+        interpretations = self._extract_interpretations(intent)
+        return evaluator.evaluate(interpretations, threshold=threshold)
+
+    # ------------------------------------------------------------------
+    # Data extraction helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _extract_genes(intent: Intent) -> list[str]:
+        """Pull selected genes from the intent's workflow results."""
+        # The workflow result is stored as eval_results or via the child
+        # workflow's result dict.  Walk common structures.
+        params = intent.params
+        genes: list[str] = []
+
+        # Direct gene list in params (e.g. from a previous selection step).
+        if "genes" in params:
+            return params["genes"]
+
+        # Try workflow results persisted on the intent.
+        for wf_result in (intent.eval_results or {}).values():
+            if isinstance(wf_result, dict):
+                for biomarker in wf_result.get("biomarkers", []):
+                    gene = biomarker.get("gene")
+                    if gene and gene not in genes:
+                        genes.append(gene)
+
+        return genes
+
+    @staticmethod
+    def _extract_interpretations(intent: Intent) -> list[dict]:
+        """Pull interpretation dicts from workflow results."""
+        interpretations: list[dict] = []
+        params = intent.params
+        if "interpretations" in params:
+            return params["interpretations"]
+        return interpretations

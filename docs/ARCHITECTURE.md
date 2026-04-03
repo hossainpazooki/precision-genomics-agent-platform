@@ -283,6 +283,7 @@ The skill -> workflow -> eval pattern is domain-portable. To add a new domain:
 
 | Technology | Role | Location |
 |-----------|------|----------|
+| Pulumi (Python SDK) | Infrastructure as code | `infra/` |
 | Python 3.11+ | Runtime | All layers |
 | Pydantic v2 | Schema validation | `mcp_server/schemas/`, `workflows/schemas.py`, `core/models.py` |
 | MCP SDK | Agent-tool protocol | `mcp_server/server.py` |

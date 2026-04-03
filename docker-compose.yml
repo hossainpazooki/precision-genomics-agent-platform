@@ -1,4 +1,5 @@
 services:
+  # --- Infrastructure ---
   db:
     image: postgres:16-alpine
     ports:
@@ -25,12 +26,53 @@ services:
       timeout: 5s
       retries: 5
 
-  activity-worker:
+  # --- Go Intent Controller (new) ---
+  intent-controller:
+    build:
+      context: ./intent-controller
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/precision_genomics
+      ML_SERVICE_URL: http://ml-service:8000
+      PORT: "8090"
+    depends_on:
+      db:
+        condition: service_healthy
+      ml-service:
+        condition: service_started
+
+  # --- TypeScript Services ---
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/precision_genomics
+      REDIS_URL: redis://redis:6379/0
+      ML_SERVICE_URL: http://ml-service:8000
+      INTENT_CONTROLLER_URL: http://intent-controller:8090
+      NEXT_PUBLIC_APP_NAME: Precision Genomics Agent Platform
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ml-service:
+        condition: service_started
+      intent-controller:
+        condition: service_started
+
+  # --- Python ML Service ---
+  ml-service:
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: Dockerfile.ml
     ports:
-      - "8081:8081"
+      - "8000:8000"
     environment:
       ENVIRONMENT: local
       DATABASE_URL: postgresql://postgres:postgres@db:5432/precision_genomics
@@ -41,12 +83,30 @@ services:
       redis:
         condition: service_healthy
 
+  # --- Python MCP Server (legacy, kept for backward compatibility) ---
   mcp-sse:
     build:
       context: .
       dockerfile: Dockerfile.mcp
     ports:
       - "8080:8080"
+    environment:
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/precision_genomics
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # --- Python Training Worker (unchanged) ---
+  training-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    ports:
+      - "8081:8081"
     environment:
       ENVIRONMENT: local
       DATABASE_URL: postgresql://postgres:postgres@db:5432/precision_genomics

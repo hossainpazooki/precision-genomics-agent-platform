@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AnalysisRun {
+  id          Int       @id @default(autoincrement())
+  status      String    @default("pending")
+  target      String    // msi | gender | mismatch
+  modality    String    // proteomics | rnaseq | combined
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+  config      Json      @default("{}")
+  results     Json      @default("{}")
+
+  panels      BiomarkerPanel[]
+  qcResults   SampleQCResult[]
+
+  @@index([status])
+  @@map("analysis_runs")
+}
+
+model BiomarkerPanel {
+  id              Int       @id @default(autoincrement())
+  analysisRunId   Int       @map("analysis_run_id")
+  target          String
+  modality        String
+  features        Json      @default("[]")
+  methodAgreement Json      @default("{}") @map("method_agreement")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  analysisRun     AnalysisRun @relation(fields: [analysisRunId], references: [id])
+  snapshots       FeatureSnapshot[]
+
+  @@index([analysisRunId])
+  @@map("biomarker_panels")
+}
+
+model SampleQCResult {
+  id                       Int     @id @default(autoincrement())
+  analysisRunId            Int     @map("analysis_run_id")
+  sampleId                 String  @map("sample_id")
+  flaggedByClassification  Boolean @default(false) @map("flagged_by_classification")
+  flaggedByDistanceMatrix  Boolean @default(false) @map("flagged_by_distance_matrix")
+  concordanceLevel         String  @default("none") @map("concordance_level") // none | single | high
+  confidence               Float   @default(0)
+  details                  Json    @default("{}")
+
+  analysisRun              AnalysisRun @relation(fields: [analysisRunId], references: [id])
+
+  @@index([analysisRunId])
+  @@index([sampleId])
+  @@map("sample_qc_results")
+}
+
+model FeatureSnapshot {
+  id          Int      @id @default(autoincrement())
+  panelId     Int      @map("panel_id")
+  featureName String   @map("feature_name")
+  value       Json     @default("{}")
+  ts          DateTime @default(now())
+  source      String   @default("pipeline")
+  confidence  Float    @default(1.0)
+
+  panel       BiomarkerPanel @relation(fields: [panelId], references: [id])
+
+  @@index([panelId])
+  @@index([featureName])
+  @@index([ts])
+  @@index([panelId, featureName, ts(sort: Desc)])
+  @@map("feature_snapshots")
+}
+
+model WorkflowExecution {
+  id              String    @id @default(uuid())
+  workflowType    String    @map("workflow_type")
+  status          String    @default("pending")
+  params          Json      @default("{}")
+  result          Json?
+  currentPhase    String    @default("pending") @map("current_phase")
+  phasesCompleted String[]  @default([]) @map("phases_completed")
+  phasesRemaining String[]  @default([]) @map("phases_remaining")
+  startedAt       DateTime  @default(now()) @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  error           String?
+
+  @@index([status])
+  @@index([workflowType])
+  @@map("workflow_executions")
+}

@@ -22,7 +22,7 @@
 | Temporal workflow patterns | ✅ 3 workflows with activity decomposition |
 | Evaluation framework | ✅ 4 evals with thresholds |
 | Code implementation | ✅ Complete — core ML engine, MCP servers, agent skills, evals, infrastructure |
-| GCP deployment | ✅ Complete — Terraform, Cloud Run, Vertex AI, CI/CD, SSE transport |
+| GCP deployment | ✅ Complete — Pulumi, Cloud Run, Vertex AI, CI/CD, SSE transport |
 | Documentation suite | ✅ 4 of 4 docs complete (ARCHITECTURE, SCIENTIFIC_METHODOLOGY, ANTHROPIC_ALIGNMENT, GCP_DEPLOYMENT) |
 | Advanced ML integration | ✅ Complete — SLM fine-tuning (`training/`), DSPy prompt optimization (`dspy_modules/`), GPU-accelerated training, synthetic data generator |
 

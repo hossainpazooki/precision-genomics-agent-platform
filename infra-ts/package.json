@@ -1,0 +1,20 @@
+{
+  "name": "precision-genomics-infra",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.0.0",
+    "@pulumi/gcp": "^8.0.0",
+    "@pulumi/docker": "^4.0.0",
+    "@pulumi/random": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "vitest": "^3.0.0"
+  }
+}

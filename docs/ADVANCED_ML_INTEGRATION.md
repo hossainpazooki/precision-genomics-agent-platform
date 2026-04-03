@@ -1225,7 +1225,7 @@ class GPUEnsembleMismatchClassifier:
 
 ### 3.6 Infrastructure: Vertex AI GPU Training Jobs
 
-GPU training runs as serverless Vertex AI Custom Training Jobs — no cluster management, no GPU driver installation, no node groups. Infrastructure is defined in the existing `terraform/modules/vertex_ai/` module.
+GPU training runs as serverless Vertex AI Custom Training Jobs — no cluster management, no GPU driver installation, no node groups. Infrastructure is defined in `infra/components/vertex_ai.py` (Pulumi ComponentResource).
 
 ```python
 # Vertex AI GPU training job configurations
@@ -1268,7 +1268,7 @@ GPU_TRAINING_CONFIG = {
 4. **Simpler DDP** — Vertex AI multi-worker training handles `MASTER_ADDR`/`MASTER_PORT` automatically
 5. **Unified experiment tracking** — Vertex AI Experiments replaces W&B, same tracker for both the main pipeline and advanced ML
 
-Additional Terraform resources needed in `terraform/modules/vertex_ai/main.tf`:
+Additional Pulumi resources in `infra/components/vertex_ai.py`:
 - GPU training machine types (A100, L4) in allowed list
 - Vertex AI TensorBoard instance for training visualization
 - Optional: Vertex AI Endpoint for SLM serving in production

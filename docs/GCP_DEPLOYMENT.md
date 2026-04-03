@@ -1,11 +1,12 @@
 # GCP Deployment Guide
 
-This document covers deploying the Precision Genomics Agent Platform to Google Cloud Platform using Terraform, Cloud Run, GCP Workflows, and Vertex AI.
+This document covers deploying the Precision Genomics Agent Platform to Google Cloud Platform using Pulumi (Python SDK), Cloud Run, GCP Workflows, and Vertex AI.
 
 ## Prerequisites
 
 - Google Cloud SDK (`gcloud`) installed and authenticated
-- Terraform >= 1.5
+- Python 3.11+
+- Pulumi >= 3.0 (`curl -fsSL https://get.pulumi.com | sh`)
 - A GCP project with billing enabled
 - APIs enabled: Cloud Run, Cloud SQL, Memorystore, Secret Manager, Artifact Registry, Vertex AI, Workflows, VPC Access
 
@@ -49,33 +50,73 @@ gcloud services enable \
 - **GCS**: Data bucket, model bucket, eval fixtures bucket
 - **Secret Manager**: ANTHROPIC_API_KEY, DATABASE_PASSWORD
 
-## Terraform Deployment
+## Pulumi Deployment
 
-### 1. Configure variables
+Infrastructure is defined in Python using Pulumi's GCP provider. All resources are in `infra/` as reusable `ComponentResource` classes.
 
-```bash
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your values
-```
-
-### 2. Initialize and apply
+### 1. Install dependencies
 
 ```bash
-terraform init
-terraform plan
-terraform apply
+cd infra
+pip install -r requirements.txt
 ```
 
-### 3. Outputs
+### 2. Configure stack
 
-After apply, Terraform outputs:
+```bash
+pulumi stack init dev                              # or select existing: pulumi stack select dev
+pulumi config set gcp:project YOUR_PROJECT_ID
+pulumi config set gcp:region us-central1
+pulumi config set --secret db_password YOUR_DB_PASSWORD
+pulumi config set --secret anthropic_api_key YOUR_API_KEY
+```
+
+### 3. Preview and deploy
+
+```bash
+pulumi preview                                     # review changes
+pulumi up                                          # deploy
+```
+
+### 4. Outputs
+
+After deploy, Pulumi exports:
 - `api_url` — Cloud Run API endpoint
 - `mcp_sse_url` — Cloud Run MCP SSE endpoint
 - `activity_worker_url` — Cloud Run Activity Worker endpoint
 - `cloud_sql_connection_name` — For Cloud SQL Proxy
 - `redis_host` — Memorystore Redis IP
 - `registry_url` — Artifact Registry URL
+
+### 5. CrossGuard policies
+
+Validate compliance before deploying:
+
+```bash
+pulumi preview --policy-pack infra/policies
+```
+
+Enforces: PITR on Cloud SQL, versioning on GCS, private networking on Cloud Run, resource labeling (`data-classification`, `hipaa-scope`).
+
+### 6. Infrastructure tests
+
+```bash
+pytest infra/tests/
+```
+
+Unit tests use `pulumi.runtime.set_mocks()` to verify resource configuration without deploying.
+
+### 7. Automation API
+
+**ML-triggered deploys** — update infrastructure after model retraining:
+```bash
+python infra/automation/deploy_on_model_retrain.py --stack dev --image-tag v2.1.0
+```
+
+**Ephemeral PR environments** — spin up isolated stacks for PR previews:
+```bash
+python infra/automation/ephemeral_env.py --action up --pr-number 42
+```
 
 ## Environment Variable Mapping
 
@@ -137,7 +178,7 @@ gcloud workflows run precision-genomics-biomarker-discovery \
 
 ## CI/CD Setup
 
-The pipeline (`.github/workflows/deploy-gcp.yml`) uses Workload Identity Federation and is gated on the CI workflow passing.
+The pipeline (`.github/workflows/deploy-pulumi.yml`) uses Workload Identity Federation with Pulumi's GitHub Actions integration and is gated on the CI workflow passing.
 
 ### Setup steps:
 
@@ -152,8 +193,14 @@ The pipeline (`.github/workflows/deploy-gcp.yml`) uses Workload Identity Federat
    - `GCP_PROJECT_ID`
    - `GCP_WORKLOAD_IDENTITY_PROVIDER`
    - `GCP_SERVICE_ACCOUNT`
+   - `PULUMI_ACCESS_TOKEN` (from Pulumi Cloud, or use self-managed backend with `pulumi login gs://bucket`)
 
-The deploy workflow triggers only when the CI workflow succeeds on `main`. It builds and deploys all three Cloud Run services and all three GCP Workflow definitions.
+### CI/CD flow:
+
+- **On PR**: `pulumi preview` + CrossGuard policy check + `pytest infra/tests/`
+- **On merge to main**: Docker build/push + `pulumi up` for all resources (Cloud Run services, workflows, and infrastructure)
+
+The workflow uses `pulumi/actions@v5` with `work-dir: infra`.
 
 ## Vertex AI
 
@@ -195,3 +242,19 @@ python -m mcp_server.server  # stdio transport
 ```
 
 When GCP config fields are unset (`None`/`False`), the platform uses the `LocalWorkflowRunner` which calls activity functions directly without any cloud dependency.
+
+## Legacy Terraform
+
+<details>
+<summary>The original Terraform configuration is preserved in <code>terraform/</code> for reference.</summary>
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+```
+
+The Terraform setup has been fully migrated to Pulumi. All 9 Terraform modules (`networking`, `cloud_sql`, `memorystore`, `gcs`, `artifact_registry`, `secret_manager`, `cloud_run`, `vertex_ai`, `workflows`) have equivalent Pulumi `ComponentResource` classes in `infra/components/`.
+</details>
