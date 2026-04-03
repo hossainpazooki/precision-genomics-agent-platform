@@ -118,7 +118,15 @@ def main() -> None:
 
     # Step 6: Biological interpretation
     print("\n[Step 6/7] Generating biological interpretation...")
-    from workflows.activities.claude_activities import _fallback_interpretation
+
+    def _fallback_interpretation(feats, target):
+        known = {
+            "TAP1": "Antigen processing — key for immune evasion in MSI-H tumors",
+            "LCP1": "Lymphocyte cytoskeletal protein — marker of immune infiltration",
+            "GBP1": "Interferon-induced GTPase — elevated in MSI-H phenotype",
+        }
+        explanations = [known.get(f, f"{f}: genomic feature relevant to {target}") for f in feats]
+        return {"interpretation": "; ".join(explanations), "source": "fallback"}
 
     interpretation = _fallback_interpretation(
         selected_features[:10] if selected_features else ["TAP1", "LCP1", "GBP1"],

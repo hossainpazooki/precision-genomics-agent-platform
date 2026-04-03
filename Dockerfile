@@ -21,11 +21,11 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY core/ core/
-COPY mcp_server/ mcp_server/
-COPY agent_skills/ agent_skills/
-COPY workflows/ workflows/
-COPY api/ api/
+COPY intents/ intents/
+COPY ml_service/ ml_service/
 COPY evals/ evals/
+COPY training/ training/
+COPY dspy_modules/ dspy_modules/
 COPY data/ data/
 COPY prompts/ prompts/
 
@@ -33,4 +33,4 @@ ENV PORT=8000
 
 EXPOSE ${PORT}
 
-CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT}
+CMD ["uvicorn", "ml_service.main:app", "--host", "0.0.0.0", "--port", "8000"]

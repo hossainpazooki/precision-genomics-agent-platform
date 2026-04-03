@@ -196,10 +196,9 @@ def tmp_data_dir(tmp_path: object) -> object:
 
 @pytest.fixture
 def client():
-    """FastAPI test client."""
+    """FastAPI test client for the ML service."""
     from fastapi.testclient import TestClient
 
-    from api.main import create_app
+    from ml_service.main import app
 
-    app = create_app()
     return TestClient(app)

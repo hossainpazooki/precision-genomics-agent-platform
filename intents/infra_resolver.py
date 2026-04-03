@@ -140,14 +140,14 @@ class InfrastructureResolver:
         }
 
         if model_type == "encoder":
-            from workflows.activities.gpu_training_activities import train_expression_encoder_activity
-            result = await train_expression_encoder_activity(config)
+            from training.gpu_training import train_expression_encoder
+            result = await train_expression_encoder(config)
         elif model_type == "slm":
-            from workflows.activities.gpu_training_activities import finetune_slm_activity
-            result = await finetune_slm_activity(config)
+            from training.gpu_training import finetune_slm
+            result = await finetune_slm(config)
         elif model_type == "cuml":
-            from workflows.activities.gpu_training_activities import run_cuml_pipeline_activity
-            result = await run_cuml_pipeline_activity(config)
+            from training.gpu_training import run_cuml_pipeline
+            result = await run_cuml_pipeline(config)
         else:
             return {"status": "failed", "error": f"Unknown model_type: {model_type}"}
 

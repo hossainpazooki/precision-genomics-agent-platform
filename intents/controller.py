@@ -137,8 +137,6 @@ class IntentController:
 
     async def _check_workflows(self, intent: dict) -> None:
         """ACTIVE → VERIFYING: poll child workflows for completion."""
-        from workflows.progress import get_progress
-
         workflow_ids = intent.get("workflow_ids", [])
         if not workflow_ids:
             # No workflows to check — go straight to verifying.
@@ -149,7 +147,7 @@ class IntentController:
         any_failed = False
 
         for wf_id in workflow_ids:
-            progress = await get_progress(wf_id)
+            progress = await self._get_workflow_progress(wf_id)
             if progress is None:
                 continue
             wf_status = progress.get("status", "pending")
@@ -222,44 +220,30 @@ class IntentController:
 
         await update_intent(intent["intent_id"], status=to_status)
 
+    async def _get_workflow_progress(self, workflow_id: str) -> dict | None:
+        """Get workflow progress via the intent-controller HTTP API."""
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(base_url="http://localhost:8090") as client:
+                resp = await client.get(f"/api/v1/workflows/{workflow_id}")
+                if resp.status_code == 200:
+                    return resp.json()
+                return None
+        except Exception:
+            logger.warning("Failed to get progress for workflow %s", workflow_id)
+            return None
+
     async def _trigger_workflows(self, intent: dict, spec) -> list[str]:
         """Start child workflows based on intent type and return their IDs."""
-        from workflows.local_runner import LocalWorkflowRunner
+        import httpx
 
-        runner = LocalWorkflowRunner()
         params = intent.get("params", {})
         workflow_ids: list[str] = []
-
         intent_type = intent["intent_type"]
 
-        if intent_type == "analysis":
-            target = params.get("target", "msi")
-            dataset = params.get("dataset", "train")
-            modalities = params.get("modalities", ["proteomics", "rnaseq"])
-
-            # Determine analysis type from params.
-            analysis_type = params.get("analysis_type", "biomarker_discovery")
-            if analysis_type == "sample_qc":
-                result = await runner.run_sample_qc(dataset=dataset)
-            else:
-                result = await runner.run_biomarker_discovery(
-                    dataset=dataset,
-                    target=target,
-                    modalities=modalities,
-                    n_top_features=params.get("n_top_features", 30),
-                )
-            wf_id = result.get("workflow_id", f"wf-{uuid.uuid4().hex[:12]}")
-            workflow_ids.append(wf_id)
-
-            await emit_event(
-                intent["intent_id"],
-                event_type="workflow_started",
-                payload={"workflow_id": wf_id, "analysis_type": analysis_type},
-            )
-
-        elif intent_type == "training":
+        if intent_type == "training":
             # Training jobs are provisioned by the infra resolver.
-            # The workflow_id is the Vertex AI job name.
             infra_state = intent.get("infra_state", {})
             job_info = infra_state.get("vertex_ai_job", {})
             job_name = job_info.get("job", {}).get("job_name", f"train-{uuid.uuid4().hex[:8]}")
@@ -270,18 +254,30 @@ class IntentController:
                 event_type="workflow_started",
                 payload={"workflow_id": job_name, "job_info": job_info},
             )
-
-        elif intent_type == "validation":
-            result = await runner.run_sample_qc(
-                dataset=params.get("dataset", "train"),
-            )
-            wf_id = result.get("workflow_id", f"val-{uuid.uuid4().hex[:12]}")
-            workflow_ids.append(wf_id)
+        else:
+            # Delegate to Go intent-controller for analysis/validation workflows.
+            try:
+                async with httpx.AsyncClient(base_url="http://localhost:8090") as client:
+                    resp = await client.post(
+                        "/api/v1/workflows",
+                        json={
+                            "intent_id": intent["intent_id"],
+                            "intent_type": intent_type,
+                            "params": params,
+                        },
+                    )
+                    result = resp.json()
+                    wf_id = result.get("workflow_id", f"wf-{uuid.uuid4().hex[:12]}")
+                    workflow_ids.append(wf_id)
+            except Exception:
+                logger.exception("Failed to trigger workflow via intent-controller")
+                wf_id = f"wf-{uuid.uuid4().hex[:12]}"
+                workflow_ids.append(wf_id)
 
             await emit_event(
                 intent["intent_id"],
                 event_type="workflow_started",
-                payload={"workflow_id": wf_id, "validation": True},
+                payload={"workflow_id": wf_id, "type": intent_type},
             )
 
         return workflow_ids

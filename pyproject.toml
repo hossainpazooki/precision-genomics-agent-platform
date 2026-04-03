@@ -79,7 +79,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core*", "mcp_server*", "agent_skills*", "workflows*", "api*", "evals*", "training*", "dspy_modules*", "scripts*", "intents*", "ml_service*"]
+include = ["core*", "evals*", "training*", "dspy_modules*", "scripts*", "intents*", "ml_service*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -89,7 +89,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["core", "mcp_server", "agent_skills", "workflows", "api", "evals", "training", "dspy_modules", "intents"]
+source = ["core", "evals", "training", "dspy_modules", "intents", "ml_service"]
 branch = true
 
 [tool.coverage.report]

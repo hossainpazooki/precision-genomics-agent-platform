@@ -104,20 +104,5 @@ jobs:
             --cpu 1 \
             --port 8080
 
-      - name: Deploy Biomarker Discovery workflow
-        run: |
-          gcloud workflows deploy precision-genomics-biomarker-discovery \
-            --location ${{ env.REGION }} \
-            --source workflows/definitions/biomarker_discovery.yaml
-
-      - name: Deploy Sample QC workflow
-        run: |
-          gcloud workflows deploy precision-genomics-sample-qc \
-            --location ${{ env.REGION }} \
-            --source workflows/definitions/sample_qc.yaml
-
-      - name: Deploy Prompt Optimization workflow
-        run: |
-          gcloud workflows deploy precision-genomics-prompt-optimization \
-            --location ${{ env.REGION }} \
-            --source workflows/definitions/prompt_optimization.yaml
+      # GCP Workflows definitions removed — workflows now managed by
+      # the Go intent-controller and Pulumi infrastructure.

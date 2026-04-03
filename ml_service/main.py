@@ -26,16 +26,45 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from mcp_server.schemas.omics import (
-    CheckAvailabilityInput,
-    EvaluateModelInput,
-    ExplainFeaturesInput,
-    ExplainFeaturesLocalInput,
-    ImputeMissingInput,
-    MatchCrossOmicsInput,
-    RunClassificationInput,
-    SelectBiomarkersInput,
-)
+from pydantic import BaseModel
+
+
+# ---------------------------------------------------------------------------
+# Request schemas — previously in mcp_server.schemas.omics (now removed)
+# ---------------------------------------------------------------------------
+
+class ImputeMissingInput(BaseModel):
+    dataset: str = "train"
+    modality: str = "proteomics"
+    method: str = "nmf"
+
+class RunClassificationInput(BaseModel):
+    dataset: str = "train"
+    target: str = "msi"
+
+class SelectBiomarkersInput(BaseModel):
+    dataset: str = "train"
+    target: str = "msi"
+    n_top: int = 30
+
+class MatchCrossOmicsInput(BaseModel):
+    dataset: str = "train"
+
+class EvaluateModelInput(BaseModel):
+    dataset: str = "test"
+    target: str = "msi"
+
+class CheckAvailabilityInput(BaseModel):
+    genes: list[str]
+    dataset: str = "train"
+
+class ExplainFeaturesInput(BaseModel):
+    features: list[str]
+    target: str = "msi"
+
+class ExplainFeaturesLocalInput(BaseModel):
+    features: list[str]
+    target: str = "msi"
 
 logger = logging.getLogger(__name__)
 
@@ -62,73 +91,112 @@ async def health() -> dict:
 @app.post("/ml/impute")
 async def impute(params: ImputeMissingInput) -> dict:
     """Run NMF imputation."""
-    from mcp_server.tools.impute_missing import run_tool
+    from core.imputation import OmicsImputer
+    from core.data_loader import load_dataset
 
-    result = await run_tool(params)
-    return result.model_dump()
+    data = load_dataset(params.dataset, params.modality)
+    imputer = OmicsImputer(method=params.method)
+    result = imputer.impute(data)
+    return {"status": "completed", "shape": list(result.shape)}
 
 
 @app.post("/ml/classify")
 async def classify(params: RunClassificationInput) -> dict:
     """Run ensemble classification."""
-    from mcp_server.tools.classifier import run_tool
+    from core.classifier import EnsembleMismatchClassifier
+    from core.data_loader import load_dataset
 
-    result = await run_tool(params)
-    return result.model_dump()
+    data = load_dataset(params.dataset)
+    clf = EnsembleMismatchClassifier()
+    result = clf.fit_predict(data, target=params.target)
+    return result if isinstance(result, dict) else {"status": "completed"}
 
 
 @app.post("/ml/features")
 async def features(params: SelectBiomarkersInput) -> dict:
     """Run multi-strategy feature selection."""
-    from mcp_server.tools.biomarker_selector import run_tool
+    from core.feature_selection import MultiStrategySelector
+    from core.data_loader import load_dataset
 
-    result = await run_tool(params)
-    return result.model_dump()
+    data = load_dataset(params.dataset)
+    selector = MultiStrategySelector()
+    result = selector.select(data, target=params.target, n_top=params.n_top)
+    return result if isinstance(result, dict) else {"status": "completed"}
 
 
 @app.post("/ml/match")
 async def match(params: MatchCrossOmicsInput) -> dict:
     """Run cross-omics matching."""
-    from mcp_server.tools.match_cross_omics import run_tool
+    from core.cross_omics_matcher import CrossOmicsMatcher
+    from core.data_loader import load_dataset
 
-    result = await run_tool(params)
-    return result.model_dump()
+    data = load_dataset(params.dataset)
+    matcher = CrossOmicsMatcher()
+    result = matcher.match(data)
+    return result if isinstance(result, dict) else {"status": "completed"}
 
 
 @app.post("/ml/evaluate")
 async def evaluate(params: EvaluateModelInput) -> dict:
     """Evaluate model on holdout data."""
-    from mcp_server.tools.evaluator import run_tool
+    from core.pipeline import COSMOInspiredPipeline
 
-    result = await run_tool(params)
-    return result.model_dump()
+    pipe = COSMOInspiredPipeline()
+    result = pipe.evaluate(dataset=params.dataset, target=params.target)
+    return result if isinstance(result, dict) else {"status": "completed"}
 
 
 @app.post("/ml/availability")
 async def availability(params: CheckAvailabilityInput) -> dict:
     """Check gene availability."""
-    from mcp_server.tools.availability_check import run_tool
+    from core.availability import check_gene_availability
 
-    result = await run_tool(params)
-    return result.model_dump()
+    result = check_gene_availability(params.genes, dataset=params.dataset)
+    return result if isinstance(result, dict) else {"status": "completed"}
 
 
 @app.post("/ml/explain")
 async def explain(params: ExplainFeaturesInput) -> dict:
     """Explain features using pathway knowledge + LLM."""
-    from mcp_server.tools.explainer import run_tool
+    try:
+        import anthropic
 
-    result = await run_tool(params)
-    return result.model_dump()
+        client = anthropic.Anthropic()
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            messages=[{
+                "role": "user",
+                "content": f"Explain the biological relevance of these genomic features for {params.target}: {', '.join(params.features)}",
+            }],
+        )
+        return {"interpretation": message.content[0].text, "source": "claude"}
+    except Exception as exc:
+        return _fallback_interpretation(params.features, params.target)
 
 
 @app.post("/ml/explain-local")
 async def explain_local(params: ExplainFeaturesLocalInput) -> dict:
     """Explain features using fine-tuned SLM."""
-    from mcp_server.tools.explain_features_local import run_tool
+    try:
+        from training.slm import load_slm
 
-    result = await run_tool(params)
-    return result.model_dump()
+        model = load_slm()
+        result = model.explain(params.features, target=params.target)
+        return {"interpretation": result, "source": "slm"}
+    except Exception:
+        return _fallback_interpretation(params.features, params.target)
+
+
+def _fallback_interpretation(features: list[str], target: str) -> dict:
+    """Hardcoded biological interpretation fallback."""
+    known = {
+        "TAP1": "Antigen processing — key for immune evasion in MSI-H tumors",
+        "LCP1": "Lymphocyte cytoskeletal protein — marker of immune infiltration",
+        "GBP1": "Interferon-induced GTPase — elevated in MSI-H phenotype",
+    }
+    explanations = [known.get(f, f"{f}: genomic feature relevant to {target}") for f in features]
+    return {"interpretation": "; ".join(explanations), "source": "fallback"}
 
 
 @app.post("/ml/synthetic")

@@ -16,7 +16,6 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY core/ core/
-COPY mcp_server/ mcp_server/
 COPY dspy_modules/ dspy_modules/
 COPY ml_service/ ml_service/
 COPY pyproject.toml .
