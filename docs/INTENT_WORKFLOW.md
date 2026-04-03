@@ -1,3 +1,52 @@
+# The Intent Plane
+
+Traditional Kubernetes architecture consists of two layers: a **data plane** (where workloads run) and a **control plane** (which manages cluster state). The intent plane is a third layer purpose-built for agent operations — it allows AI agents to declare goals and have infrastructure respond autonomously, without requiring human-in-the-loop approval at each step.
+
+This implementation is the application-level realization of that concept for precision genomics workloads.
+
+## Autonomous Agent Operations
+
+The Go intent-controller (`intent-controller/internal/intent/manager.go`) implements a self-driving state machine. An agent calls `POST /api/v1/intents` with a declarative spec — `{"intent_type": "analysis", "params": {"target": "msi"}}` — and the controller autonomously drives through the full lifecycle:
+
+```
+DECLARED → RESOLVING → ACTIVE → VERIFYING → ACHIEVED / FAILED
+```
+
+No human approval gates exist between states. The reconciler (`intent-controller/internal/intent/reconciler.go`) polls non-terminal intents on a timer and advances each one. Programmatic eval criteria (biological validity >= 60%, reproducibility >= 85%, hallucination detection >= 90%) replace human judgment in the VERIFYING phase — the assurance loop determines success or failure without intervention.
+
+## Bridging AI and Infrastructure
+
+The core of the intent plane is the bridge between agent goals and infrastructure provisioning. When an intent declares requirements like `required_infra: ["worker_scaled", "gcs_data_staged"]`, the activity dispatcher (`intent-controller/internal/activity/dispatcher.go`) and the manager's `resolveAndActivate()` method translate these into concrete infrastructure operations — Pulumi Automation API calls for worker scaling, GCS data staging verification, Vertex AI job provisioning, and GPU quota validation.
+
+The agent never manages infrastructure directly. It declares intent; the controller bridges to infrastructure:
+
+```
+Agent → Intent Plane (:8090) → Pulumi / GCS / Vertex AI
+                ↓
+         ML Service (:8000)
+```
+
+Intent specs (`intent-controller/internal/models/intent.go`) bind each intent type to its infra requirements and eval criteria in a single frozen struct, making the mapping from goal to infrastructure explicit and auditable.
+
+## Standardization for Cloud Environments
+
+The intent plane provides a uniform contract that any client can consume — the TypeScript dashboard, MCP tools, other agents, or direct API calls all use the same REST endpoints (`/api/v1/intents`, `/api/v1/workflows`) and the same three canonical intent types (`analysis`, `training`, `validation`). Every intent follows the same lifecycle, same eval gates, and same infra resolution regardless of origin.
+
+This standardization means adding a new agent or integration point requires no changes to the intent plane itself — only a new client that speaks the existing API.
+
+## From Application-Level to Infrastructure-Level
+
+This implementation proves the intent plane pattern at the **application layer** — it works for this platform's genomics workflows within a Docker Compose stack. The path to a full Kubernetes-level intent plane requires:
+
+- **Custom Resource Definitions (CRDs)** for `Intent` objects, making intents first-class Kubernetes resources
+- **An operator pattern** replacing the HTTP service with a k8s controller that watches Intent CRs and reconciles state
+- **Multi-tenant intent routing** across namespaces, with RBAC policies governing which agents can declare which intent types
+- **Cross-cluster intent federation** for workloads that span cloud regions or providers
+
+The current Go service (`intent-controller/`) is designed with this trajectory in mind — the `Manager`, `Reconciler`, and `Dispatcher` interfaces map directly to Kubernetes controller-runtime patterns. The state machine, infra resolution, and eval assurance logic remain unchanged; only the hosting substrate changes.
+
+---
+
 # Intent Lifecycle Workflow
 
 The intent lifecycle layer sits between the agent/workflow layer and the Pulumi infrastructure layer, formalizing agent goals as infrastructure-level concerns with the **observe-decide-act-verify** loop from intent-based networking.
@@ -407,12 +456,22 @@ mcp_server/tools/intent_status.py     # get_intent_status tool
 4. **Controller is idempotent.** Safe to call `process()` repeatedly — advances through whatever transition is possible.
 5. **Core ML untouched.** `core/` doesn't know about intents. The intent layer orchestrates around it.
 
-## Future: Go Migration
+## Go Implementation (Completed)
 
-The intent controller is a natural candidate for migration to Go:
-- Go's concurrency model (goroutines, channels) fits the observe-decide-act-verify loop
-- Single-binary deployment simplifies the controller as a long-running service
-- Pulumi has first-class Go Automation API support
-- The controller's interface is simple enough to port without changing the data model
+The intent controller has been migrated to Go as the `intent-controller/` service:
 
-Ship in Python first alongside the existing stack. Migrate to Go when the lifecycle stabilizes.
+```
+intent-controller/
+├── cmd/server/main.go                 # HTTP server bootstrap
+├── internal/
+│   ├── models/                        # Intent, workflow, activity types
+│   ├── store/                         # pgx repos with auto-migration DDL
+│   ├── intent/                        # Manager, reconciler, validator
+│   ├── workflow/                      # Phase-based engine with ML dispatch
+│   ├── activity/                      # HTTP dispatcher to Python ML service
+│   └── api/                           # chi router, handlers, middleware
+├── Dockerfile
+└── go.mod
+```
+
+The Python `intents/`, `workflows/`, and `infra/automation/` modules remain as the reference implementation. The Go service runs on port 8090 and the TypeScript web app proxies intent/workflow operations to it via `web/src/lib/intent-client.ts`.
