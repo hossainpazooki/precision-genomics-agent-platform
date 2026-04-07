@@ -8,7 +8,6 @@ from components.registry import ArtifactRegistry
 from components.secrets import SecretStore
 from components.storage import GCSBuckets
 from components.vertex_ai import VertexAI
-from components.workflows import GenomicsWorkflows
 
 __all__ = [
     "ArtifactRegistry",
@@ -16,7 +15,6 @@ __all__ = [
     "CloudRunServiceArgs",
     "CloudSQLDatabase",
     "GCSBuckets",
-    "GenomicsWorkflows",
     "MemorystoreRedis",
     "Networking",
     "SecretStore",

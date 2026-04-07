@@ -13,7 +13,7 @@ import { CloudSQLDatabase } from "./components/database";
 import { MemorystoreRedis } from "./components/cache";
 import { CloudRunService } from "./components/cloudRunService";
 import { VertexAI } from "./components/vertexAi";
-import { GenomicsWorkflows } from "./components/workflows";
+// GenomicsWorkflows removed — orchestration migrated to web/src/lib/workflows/engine.ts
 
 const cfg = loadConfig();
 
@@ -143,13 +143,6 @@ new VertexAI("vertex-ai", {
   region: cfg.region,
 });
 
-// --- GCP Workflows ---
-const workflows = new GenomicsWorkflows("workflows", {
-  projectId: cfg.projectId,
-  region: cfg.region,
-  activityServiceUrl: mlService.url,
-});
-
 // --- Exports ---
 pulumi.export("webUrl", webService.url);
 pulumi.export("mlServiceUrl", mlService.url);
@@ -160,6 +153,3 @@ pulumi.export("redisHost", cache.host);
 pulumi.export("gcsDataBucket", gcs.dataBucketName);
 pulumi.export("gcsModelBucket", gcs.modelBucketName);
 pulumi.export("registryUrl", registry.registryUrl);
-pulumi.export("biomarkerDiscoveryWorkflowId", workflows.biomarkerDiscoveryId);
-pulumi.export("sampleQcWorkflowId", workflows.sampleQcId);
-pulumi.export("promptOptimizationWorkflowId", workflows.promptOptimizationId);

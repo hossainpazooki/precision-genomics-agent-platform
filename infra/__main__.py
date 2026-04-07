@@ -13,7 +13,6 @@ from components import (
     CloudRunServiceArgs,
     CloudSQLDatabase,
     GCSBuckets,
-    GenomicsWorkflows,
     MemorystoreRedis,
     Networking,
     SecretStore,
@@ -146,15 +145,8 @@ worker_service = CloudRunService(
 # --- Vertex AI ---
 vertex = VertexAI("vertex-ai", project_id=cfg.project_id, region=cfg.region)
 
-# --- GCP Workflows (depends on worker URL) ---
-workflows = GenomicsWorkflows(
-    "workflows",
-    project_id=cfg.project_id,
-    region=cfg.region,
-    activity_service_url=worker_service.url,
-)
-
 # --- Exports (replaces terraform/outputs.tf) ---
+# Note: GCP Workflows removed — orchestration migrated to web/src/lib/workflows/engine.ts
 pulumi.export("api_url", api_service.url)
 pulumi.export("mcp_sse_url", mcp_service.url)
 pulumi.export("activity_worker_url", worker_service.url)
@@ -164,6 +156,3 @@ pulumi.export("redis_host", cache.host)
 pulumi.export("gcs_data_bucket", gcs.data_bucket_name)
 pulumi.export("gcs_model_bucket", gcs.model_bucket_name)
 pulumi.export("registry_url", registry.registry_url)
-pulumi.export("biomarker_discovery_workflow_id", workflows.biomarker_discovery_id)
-pulumi.export("sample_qc_workflow_id", workflows.sample_qc_id)
-pulumi.export("prompt_optimization_workflow_id", workflows.prompt_optimization_id)
