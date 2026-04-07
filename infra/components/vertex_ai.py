@@ -1,4 +1,8 @@
-"""Vertex AI metadata store and TensorBoard for experiment tracking."""
+"""Vertex AI TensorBoard for experiment tracking.
+
+Note: AiMetadataStore intentionally omitted — google-beta provider bug causes
+a perpetual create/destroy cycle. See DEPLOY.md for history.
+"""
 
 import pulumi
 import pulumi_gcp as gcp
@@ -7,7 +11,6 @@ import pulumi_gcp as gcp
 class VertexAI(pulumi.ComponentResource):
     """Vertex AI resources for ML experiment tracking and visualization."""
 
-    metadata_store_id: pulumi.Output[str]
     tensorboard_id: pulumi.Output[str]
 
     def __init__(
@@ -21,13 +24,6 @@ class VertexAI(pulumi.ComponentResource):
 
         child = pulumi.ResourceOptions(parent=self)
 
-        self.metadata_store = gcp.vertex.AiMetadataStore(
-            f"{name}-metadata",
-            project=project_id,
-            region=region,
-            opts=child,
-        )
-
         self.tensorboard = gcp.vertex.AiTensorboard(
             f"{name}-tensorboard",
             project=project_id,
@@ -36,12 +32,10 @@ class VertexAI(pulumi.ComponentResource):
             opts=child,
         )
 
-        self.metadata_store_id = self.metadata_store.name
         self.tensorboard_id = self.tensorboard.name
 
         self.register_outputs(
             {
-                "metadata_store_id": self.metadata_store_id,
                 "tensorboard_id": self.tensorboard_id,
             }
         )

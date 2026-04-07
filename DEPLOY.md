@@ -20,7 +20,7 @@
 - 3 GCS buckets (`module.gcs`)
 - Artifact Registry repo `precision-genomics` (`module.artifact_registry`)
 - Secret Manager secrets: `ANTHROPIC_API_KEY`, `DATABASE_PASSWORD` (`module.secret_manager`)
-- Vertex AI Tensorboard (`module.vertex_ai`)
+- Vertex AI Tensorboard (`module.vertex_ai`) — metadata store intentionally omitted (provider bug)
 
 ### Phase 3: Docker Images Built & Pushed
 All three images pushed to `us-central1-docker.pkg.dev/prec-genomics-agent/precision-genomics/`:
@@ -32,7 +32,7 @@ All three images pushed to `us-central1-docker.pkg.dev/prec-genomics-agent/preci
 Granted `roles/secretmanager.secretAccessor` to `677590965589-compute@developer.gserviceaccount.com` on both secrets.
 
 ### Bug Fixes Applied (not yet committed)
-1. **Vertex AI metadata store** — removed `google_vertex_ai_metadata_store` resource from `terraform/modules/vertex_ai/main.tf` (google-beta provider bug causes perpetual create/destroy cycle)
+1. **Vertex AI metadata store** — removed `google_vertex_ai_metadata_store` from Terraform and both Pulumi components (google-beta provider bug causes perpetual create/destroy cycle)
 2. **Biomarker workflow YAML** — fixed `workflows/definitions/biomarker_discovery.yaml`: initialized `imputation_results` and `feature_panels` as empty lists, added `collect_imputation` and `collect_features` assign steps in parallel loop
 3. **Terraform semicolons** — expanded single-line variable blocks in `cloud_sql/main.tf`, `secret_manager/main.tf`, `vertex_ai/main.tf` (done in earlier session)
 
