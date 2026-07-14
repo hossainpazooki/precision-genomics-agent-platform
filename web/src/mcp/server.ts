@@ -1,5 +1,5 @@
 /**
- * MCP Server for Precision Genomics Agent Platform (TypeScript).
+ * MCP Server for CLUE (TypeScript).
  * Migrated from mcp_server/server.py.
  *
  * Exposes 9 genomics tools over MCP (stdio/SSE). Each tool validates

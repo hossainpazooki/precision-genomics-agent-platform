@@ -1,5 +1,5 @@
 /**
- * Precision Genomics Agent Platform — Pulumi Infrastructure (TypeScript).
+ * CLUE — Pulumi Infrastructure (TypeScript).
  * Migrated from infra/__main__.py.
  */
 

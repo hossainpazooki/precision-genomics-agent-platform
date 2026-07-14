@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Precision Genomics Agent Platform",
+  title: "CLUE",
   description:
     "Claude-orchestrated precision genomics platform for multi-omics biomarker discovery",
 };
