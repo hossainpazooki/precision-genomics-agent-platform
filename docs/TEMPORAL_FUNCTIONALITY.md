@@ -96,19 +96,20 @@ still doesn't cover.
 | `RetryPolicy` (automatic retries) | ✅ all 3 workflows | ✅ `RetryPolicy` + `runWithRetry` |
 | Parallel fan-out (`parallel for` / `asyncio.gather`) | ✅ biomarker, 3 modalities | ✅ `Phase.Parallel` + `runFanOut` |
 | Saga / compensation | partial (hand-rolled) | not reintroduced (was framework-independent) |
-| Durable replay / crash recovery | ❌ not needed then | 🟡 partial — resume from last completed phase (`Engine.Recover`); checkpoint-resume, not event-sourced replay; no cross-replica lease yet |
+| Durable replay / crash recovery | ❌ not needed then | 🟢 resume from last completed phase (`Engine.Recover`) + cross-replica claim/lease (`FOR UPDATE SKIP LOCKED`); checkpoint-resume, not event-sourced replay |
 | Signals / queries | ❌ | ⭕ not provided |
 | continue-as-new / heartbeats / child workflows / versioning | ❌ | ⭕ not provided |
 
 ## Limits — what this does *not* provide
 
-Single-process **crash recovery now works** (`Engine.Recover` resumes `running`
-workflows from their last completed phase). Two things it still does *not* cover:
+Single-process **crash recovery works** (`Engine.Recover` resumes `running`
+workflows from their last completed phase) and **cross-replica safety is now
+implemented**: `IntentRepo.ClaimIntents` and the workflow repo use
+`FOR UPDATE SKIP LOCKED` (`internal/store/intent_repo.go`,
+`internal/store/workflow_repo.go`), so each row is handed to exactly one
+transaction — recovery is at-most-once across replicas. One thing it still does
+*not* cover:
 
-- **Cross-replica at-most-once.** With more than one controller replica, two
-  could recover the same workflow and run the remaining phases twice. A claim/
-  lease (`SELECT ... FOR UPDATE SKIP LOCKED` or a `worker_id` + heartbeat) is
-  required before scaling past one replica. This is "step 3" and is not yet built.
 - **Deterministic replay of non-idempotent steps.** Resume relies on phases being
   idempotent; it re-runs the interrupted phase rather than replaying recorded
   results. Non-idempotent activities would need Temporal-style event sourcing.

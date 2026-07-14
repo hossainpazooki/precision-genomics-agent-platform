@@ -1,12 +1,19 @@
 # Advanced ML Integration — SLM Fine-Tuning, Prompt Optimization & GPU-Accelerated Training
 
-**Precision Genomics Agent Platform — Enhancement Layer**
+**CLUE — Enhancement Layer**
 **Author:** Hossain | **Date:** February 2026
 **Prerequisite:** Implementation Plan v3 (Phases 1–7 complete), GCP migration complete
 
-> **✅ STATUS: IMPLEMENTED — March 2026**
->
-> All three enhancement layers have been implemented: SLM fine-tuning pipeline (`training/`), DSPy prompt optimization (`dspy_modules/`), and GPU-accelerated training. 328 tests passing, 17 skipped (optional GPU/SLM deps).
+> **[DESIGN-ERA doc — modules exist, orchestration framing does not]** The
+> enhancement *modules* this describes are present in the repo (`training/` for
+> SLM/QLoRA + DDP, `dspy_modules/` for prompt optimization). But this doc
+> **predates the polyglot split**, and its orchestration assumptions are
+> **superseded**: it describes **Temporal workflows** (Temporal was removed),
+> Python `mcp_server/` / `agent_skills/` / `workflows/` packages (decommissioned),
+> and `infra/components/*.py` **Pulumi-Python** paths (infra is now TypeScript
+> Pulumi in `infra-ts/`). Much of the code below is **illustrative/proposed**, not
+> a literal record of what is wired. For current architecture see
+> [`README.md`](../README.md) and [`TECHNICAL_WRITEUP.md`](TECHNICAL_WRITEUP.md).
 
 ---
 

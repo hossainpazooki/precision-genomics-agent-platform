@@ -1,7 +1,14 @@
 # Synthetic Data Generation Strategy
 
-**Precision Genomics Agent Platform**
+**CLUE**
 **Author:** Hossain | **Date:** February 2026
+
+> **[DESIGN-ERA doc — generator is current, surrounding framing is not]** The
+> synthetic generator described here is **current and implemented** as
+> `core/synthetic.py` (`SyntheticCohortGenerator`). The platform/role framing
+> around it predates the polyglot split and the CLUE closed loop — for current
+> architecture see [`README.md`](../README.md) and
+> [`TECHNICAL_WRITEUP.md`](TECHNICAL_WRITEUP.md).
 
 > **✅ STATUS: IMPLEMENTED — March 2026**
 >

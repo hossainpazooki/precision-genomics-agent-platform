@@ -1,5 +1,13 @@
 # Handoff — Live run + GCP decommission of upstream-label-correction (probe deferred)
 
+> **[SUPERSEDED — see `docs/GCP-DECOMMISSION-EVIDENCE-2026-07-10.md`]** The live run and
+> decommission this doc planned were executed the next day. Resolution differs from the
+> "decisions NOT yet made" below: Cloud SQL was **stopped** (not deleted), Redis + VPC
+> connector **deleted**, scope stayed trio-only. The live-run discovery: the GCP project
+> (`prec-genomics-agent`) is the precision-genomics biomarker platform, not the CLUE loop
+> itself (CLUE was extracted from it) — the demo depends on none of it. Kept for provenance
+> of the pre-run reasoning; treat the evidence doc as authoritative for what actually happened.
+
 **Date:** 2026-07-09. **Newest commit this brief leans on:** `passed-vs-true-demo` origin/main
 `91ebb13` (the demo that consumes CLUE's recorded artifacts is done + pushed). This handoff
 file is itself **untracked** in `upstream-label-correction` until committed — pick-up measures

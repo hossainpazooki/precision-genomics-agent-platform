@@ -1,5 +1,18 @@
 # The Intent Plane
 
+> **[MIXED VINTAGE — read with care]** The "Intent Plane" framing and the Go
+> `intent-controller` described up front are **current**. The detailed
+> implementation sections further down — *Data Model* (SQLModel tables),
+> *Controller Architecture* ("not a long-running daemon", called per-intent),
+> *File Layout* (`intents/`), *MCP Integration*, *CrossGuard Policy*, *Design
+> Principles* — describe the **decommissioned Python** layer and are kept for
+> design provenance. Where they conflict with the Go service, the Go service
+> wins: the controller is a **timer-driven reconciler** (not called per-intent),
+> it is **multi-replica-safe** via a `FOR UPDATE SKIP LOCKED` claim/lease, and the
+> Python `intents/`/`workflows/` packages are **decommissioned**. For current
+> architecture see [`README.md`](../README.md) and
+> [`TECHNICAL_WRITEUP.md`](TECHNICAL_WRITEUP.md).
+
 Traditional Kubernetes architecture consists of two layers: a **data plane** (where workloads run) and a **control plane** (which manages cluster state). The intent plane is a third layer purpose-built for agent operations — it allows AI agents to declare goals and have infrastructure respond autonomously, without requiring human-in-the-loop approval at each step.
 
 This implementation is the application-level realization of that concept for precision genomics workloads.
@@ -474,4 +487,4 @@ intent-controller/
 └── go.mod
 ```
 
-The Python `intents/`, `workflows/`, and `infra/automation/` modules remain as the reference implementation. The Go service runs on port 8090 and the TypeScript web app proxies intent/workflow operations to it via `web/src/lib/intent-client.ts`.
+The Python `intents/`, `workflows/`, and `infra/automation/` modules have since been **decommissioned** — the Go service is now the sole implementation. The Go service runs on port 8090 and the TypeScript web app proxies intent/workflow operations to it via `web/src/lib/intent-client.ts`.

@@ -1,5 +1,14 @@
 # Handoff — Security-scan CI fix (pgx GO-2026-5004): bump applied+verified, Go-floor ripple NOT done
 
+> **[RESOLVED — merged `92af8ad`, PR #5]** Everything this doc describes as pending below
+> (the Go-floor ripple in `ci.yml`/`Dockerfile`, and the commit/PR) was completed and merged
+> to `main` the same evening this doc was committed — this doc shipped stale, describing a
+> state that had already changed. `re-verify:` `grep 'jackc/pgx/v5 ' intent-controller/go.mod`
+> -> `v5.9.2`; `grep -n 'go-version' .github/workflows/ci.yml` -> `"1.25"`;
+> `grep -n 'golang:1' intent-controller/Dockerfile` -> `golang:1.25-alpine`;
+> `gh pr view 5 --json state` -> `MERGED`. Left below for provenance; do not act on the
+> "NOT done"/"not started" markers as current state.
+
 **Date:** 2026-07-09. **Base:** branch `fix/pgx-GO-2026-5004` off `main` **`a3ff359`**
 ("docs: handoff for live run + GCP decommission"). **Nothing is committed on the branch** —
 pick-up measures drift from `a3ff359` plus the uncommitted working tree described below.
