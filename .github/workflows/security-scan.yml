@@ -21,6 +21,15 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
 
+      - name: Upgrade build-backend deps the audit flags
+        # setuptools is not a declared dependency -- it ships with the runner
+        # image (79.0.1 as of 2026-07), and pip-audit audits the whole installed
+        # environment, so an unpatched runner setuptools reds the job on its own.
+        # PYSEC-2026-3447 (MANIFEST.in exclusions bypassed by NFD/NFC mismatch on
+        # macOS APFS when building an sdist) is fixed in 83.0.0. Upgrading keeps
+        # the gate strict instead of adding a second --ignore-vuln.
+        run: pip install -U "setuptools>=83.0.0"
+
       - name: Run pip-audit
         # --strict dropped: the local editable dist (precision-genomics-agent-platform)
         # is not published to PyPI and cannot be audited; without --strict that is a
